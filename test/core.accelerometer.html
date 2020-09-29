@@ -2,9 +2,10 @@
 <html>
     <head>
         <title>AppNext Test Page</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="stylesheet" href="base/style.css" />
         <script src="base/utils.js"></script>
-        <script src="../../dist/core/app-next-core.min.js"></script>
+        <script src="../dist/app-next-core.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/pretty-print-json@0.2/dist/pretty-print-json.min.js"></script>
         <script>
             AppNext(ctx =>
@@ -53,7 +54,7 @@
                 {
                     notify('accelerometer-ready', true)
 
-                    setTimeout(() => acc.stop(), 5000)
+                    setTimeout(() => acc.stop(), 3000)
 
                     throw error()
                 }

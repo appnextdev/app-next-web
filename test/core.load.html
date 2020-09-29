@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>AppNext Test Page</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="base/style.css" />
+        <script src="base/utils.js"></script>
+        <script src="../dist/app-next-core.js"></script>
+        <script>
+            AppNext(ctx => notify('lib-ready', true))
+        </script>
+    </head>
+    <body>
+        <h1>AppNext Loading Test</h1>
+        <label id="lib-ready" class="test">AppNext core library loaded sucessfully and ready for use</label>
+    </body>
+</html>
