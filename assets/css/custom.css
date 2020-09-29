@@ -1,0 +1,30 @@
+body
+{
+  background: #f4f4fe;
+}
+
+.page-header
+{
+  background: #9042ff;
+}
+
+a.git.btn
+{
+  background: #fff;
+  color: #333;
+  text-align: center;
+}
+
+a.git.btn > img
+{
+  display: block;
+  height: 4em;
+  margin: 0 auto;
+}
+
+.main-content h1, .main-content h2, .main-content h3, .main-content h4, .main-content h5, .main-content h6
+{
+  color: #777;
+  padding: 0.5em;
+  border-bottom: 0.1em solid #42FF84;
+}
