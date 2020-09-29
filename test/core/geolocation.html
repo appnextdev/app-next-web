@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>AppNext Test Page</title>
+        <link rel="stylesheet" href="base/style.css" />
+        <script src="base/utils.js"></script>
+        <script src="../../dist/core/app-next-core.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/pretty-print-json@0.2/dist/pretty-print-json.min.js"></script>
+        <script>
+            AppNext(ctx =>
+            {
+                const geoloc = ctx.providers.geolocation({ enableHighAccuracy: true })
+
+                geoloc.onCancel = error => 
+                {
+                    if (error.name == 'feature terminated')
+                    {
+                        notify('geolocation-cancel', true)
+                    }
+                    else
+                    {
+                        notify('geolocation-ready', false)
+                        notify('geolocation-position', false)
+                        notify('geolocation-cancel', false)
+                        notify('geolocation-error', false)
+                    }
+                }
+
+                geoloc.onData = position => 
+                {
+                    output('position', position, true)
+
+                    notify('geolocation-position', true)
+                }
+
+                geoloc.onError = error =>
+                {
+                    if (error.name == 'test')
+                    {
+                        notify('geolocation-error', true)
+                    }
+                    else
+                    {
+                        notify('geolocation-error', false)
+
+                        console.error(error)
+                    }
+                }
+
+                geoloc.onPending = () => notify('geolocation-wait', true)
+
+                geoloc.onReady = () => 
+                {
+                    notify('geolocation-ready', true)
+
+                    setTimeout(() => geoloc.stop(), 3000)
+
+                    throw error()
+                }
+
+                geoloc.request().then(() => geoloc.start())
+            })
+        </script>
+    </head>
+    <body>
+        <h1>AppNext GeoLocation Provider Test</h1>
+        <ul class="info">
+            <li>This test requires user action to complete</li> 
+            <li>Approve / reject geolocation to proceed</li>
+        </ul>
+        <label id="geolocation-wait" class="test">Wait for geolocation permission from user</label>
+        <label id="geolocation-ready" class="test">Geolocation is ready for sending position data</label>
+        <label id="geolocation-position" class="test">Geolocation is sending position data</label>
+        <label id="geolocation-cancel" class="test">Geolocation is stopped properly</label>
+        <label id="geolocation-error" class="test">Error handled by geolocation provider</label>
+        <pre id="position" class="output"></pre>
+    </body>
+</html>
