@@ -22,7 +22,7 @@
   </head>
   <body>
     <header class="page-header" role="banner">
-      <img src="/assets/logo.png" alt="logo" />
+      <img src="{{ '/assets/logo.png?v=' | append: site.github.build_revision | relative_url }}" alt="logo" />
       <h1 class="project-name">{{ site.title }}</h1>
       <h2 class="project-tagline">{{ site.description }}</h2>
       {% if site.github.is_project_page %}
