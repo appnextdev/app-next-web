@@ -13,7 +13,7 @@
     {% endif %}
     <meta charset="UTF-8">
 
-{% seo %}
+  {% seo %}
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#157878">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -22,11 +22,12 @@
   </head>
   <body>
     <header class="page-header" role="banner">
-      <h1 class="project-name">{{ page.title }}</h1>
-      <h2 class="project-tagline">{{ page.description }}</h2>
+      <img src="/assets/logo.png" alt="logo" />
+      <h1 class="project-name">{{ site.title }}</h1>
+      <h2 class="project-tagline">{{ site.description }}</h2>
       {% if site.github.is_project_page %}
         <a href="https://github.com/appnextdev/app-next-core" class="git btn">
-          <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" />
+          <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="github logo" />
           View on GitHub
         </a>
       {% endif %}

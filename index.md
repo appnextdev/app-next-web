@@ -32,6 +32,7 @@ Ever had a great idea for a life-changing app? Or even a tiny silly application,
 
 How can you tell if this project supports your app requirements? By default, *AppNext* project try to support as many featutres as possible while informing the developer if a feature is not supported on a specific device. The best way is to test it yourself by using the project test pages
 * Elements
+    * [File Saver](/test/core.file-saver.html) - save data from your app as a file in hosting device
     * [Media Picker](/test/core.media-picker.html) - capture or select audio, images and videos
 * Sensors
     * [Accelerometer](/test/core.accelerometer.html) - get x,y,z coordinates of device acceleration forces

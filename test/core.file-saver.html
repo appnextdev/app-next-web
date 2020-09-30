@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>AppNext Test Page</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="base/style.css" />
+        <script src="base/utils.js"></script>
+        <script src="../dist/app-next-core.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/pretty-print-json@0.2/dist/pretty-print-json.min.js"></script>
+        <script>
+            AppNext(ctx =>
+            {
+                function wire(name)
+                {
+                    events[name + '-picker'] =
+                    {
+                        onready: () =>
+                        {
+                            notify(name + '-ready', true)
+                        },
+                        onmedia: files =>
+                        {
+                            output(name + '-output', files)
+
+                            notify(name + '-media', true)
+                        },
+                        oncancel: error =>
+                        {
+                            if (error.name.includes('not supported'))
+                            {
+                                notify(name + '-ready', false)
+                            }
+
+                            notify(name + '-media', false)
+                        }
+                    }
+                }
+
+                const events = {}
+
+                const sections =
+                [ 
+                    'camera-audio', 
+                    'camera-image',
+                    'camera-video',
+                    'select-audio',
+                    'select-image',
+                    'select-video'
+                ]
+                
+                sections.forEach(section => wire(section))
+
+                ctx.config(events)
+
+                ctx.config
+                ({
+                    'simple-save':
+                    {
+                        data: () => 'This 📝 generated with 💜 in a modern 📱 app',
+                        oncancel: () => notify('saver-ready', false),
+                        onready: () => notify('saver-ready', true),
+                        onsave: info =>
+                        {
+                            notify('saver-save', true)
+                            output('saver-output', info)
+                        }
+                    }
+                })
+            })
+        </script>
+    </head>
+    <body>
+        <h1>AppNext FileSaver Element Test</h1>
+        <ul class="info">
+            <li>This test requires user action to complete</li> 
+            <li>Click the element in order to save file</li>
+        </ul>
+        
+        <file-saver type="text/csv;charset=UTF-8" name="simple.txt" config="simple-save"></file-saver>
+        <label id="saver-ready" class="test">File saver element is ready</label>
+        <label id="saver-save" class="test">Save dialog opened using File saver element</label>
+        <pre id="saver-output" class="output"></pre>
+    </body>
+</html>
