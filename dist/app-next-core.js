@@ -354,10 +354,20 @@ System.register("handlers/watch", ["handlers/data", "providers/permission"], fun
             AppNextWatch = class AppNextWatch extends data_2.AppNextDataEvents {
                 constructor(permissions) {
                     super();
+                    const invokePending = () => {
+                        loading = false;
+                        this.invokePendingEvent();
+                    };
+                    var loading = true;
                     this.permission = new permission_1.AppNextPermissionProvider(permissions);
                     this.permission.onCancel = error => this.invokeCancelEvent(error);
                     this.permission.onError = error => this.invokeErrorEvent(error);
-                    this.permission.onPending = () => this.invokePendingEvent();
+                    this.permission.onPending = invokePending;
+                    this.permission.onReady = () => {
+                        if (loading)
+                            invokePending();
+                        this.invokeReadyEvent();
+                    };
                 }
                 request() {
                     return this.permission.register();
@@ -420,7 +430,7 @@ System.register("providers/geolocation", ["handlers/watch", "handlers/error"], f
         }
     };
 });
-System.register("sensors/base", ["handlers/watch", "handlers/error"], function (exports_6, context_6) {
+System.register("sensors/base/sensor", ["handlers/watch", "handlers/error"], function (exports_6, context_6) {
     "use strict";
     var watch_2, error_3, AppNextSensor;
     var __moduleName = context_6 && context_6.id;
@@ -485,18 +495,18 @@ System.register("sensors/base", ["handlers/watch", "handlers/error"], function (
         }
     };
 });
-System.register("sensors/accelerometer", ["sensors/base"], function (exports_7, context_7) {
+System.register("sensors/accelerometer", ["sensors/base/sensor"], function (exports_7, context_7) {
     "use strict";
-    var base_1, AppNextAccelerometer;
+    var sensor_1, AppNextAccelerometer;
     var __moduleName = context_7 && context_7.id;
     return {
         setters: [
-            function (base_1_1) {
-                base_1 = base_1_1;
+            function (sensor_1_1) {
+                sensor_1 = sensor_1_1;
             }
         ],
         execute: function () {
-            AppNextAccelerometer = class AppNextAccelerometer extends base_1.AppNextSensor {
+            AppNextAccelerometer = class AppNextAccelerometer extends sensor_1.AppNextSensor {
                 constructor(options) {
                     super(() => new Accelerometer(options), 'accelerometer');
                 }
@@ -542,17 +552,83 @@ System.register("core", ["providers/geolocation", "sensors/accelerometer"], func
         }
     };
 });
-System.register("elements/base", ["core", "handlers/data"], function (exports_9, context_9) {
+System.register("handlers/background", ["handlers/data", "handlers/error"], function (exports_9, context_9) {
     "use strict";
-    var core_1, data_3, AppNextCustomElementUtils, AppNextCustomElement;
+    var data_3, error_4, AppNextBackgroundService;
     var __moduleName = context_9 && context_9.id;
+    return {
+        setters: [
+            function (data_3_1) {
+                data_3 = data_3_1;
+            },
+            function (error_4_1) {
+                error_4 = error_4_1;
+            }
+        ],
+        execute: function () {
+            AppNextBackgroundService = class AppNextBackgroundService extends data_3.AppNextDataEvents {
+                constructor(script) {
+                    super();
+                    this.code = 'data:application/x-javascript;base64,' + btoa(script);
+                }
+                request() {
+                    try {
+                        if (this.worker)
+                            return;
+                        this.worker = new Worker(this.code);
+                        this.invokePendingEvent();
+                    }
+                    catch (error) {
+                        this.invokeCancelEvent(error);
+                    }
+                }
+                send(data) {
+                    this.worker.postMessage(data);
+                }
+                start() {
+                    if (!this.worker) {
+                        this.request();
+                        if (!this.worker)
+                            return;
+                    }
+                    this.worker.onerror = event => this.invokeErrorEvent(event.error);
+                    this.worker.onmessage = event => {
+                        try {
+                            this.invokeDataEvent(event);
+                        }
+                        catch (error) {
+                            this.invokeErrorEvent(error);
+                        }
+                    };
+                    this.invokeReadyEvent();
+                }
+                stop(data) {
+                    try {
+                        if (arguments.length == 1)
+                            this.send(data);
+                        setTimeout(() => {
+                            this.worker.terminate();
+                            this.worker.onerror = this.worker.onmessage = null;
+                            this.invokeCancelEvent(error_4.error(error_4.Errors.featureTerminated));
+                        }, 10);
+                    }
+                    catch (error) {
+                        this.invokeErrorEvent(error);
+                    }
+                }
+            };
+            exports_9("AppNextBackgroundService", AppNextBackgroundService);
+        }
+    };
+});
+System.register("elements/base/utils", ["core"], function (exports_10, context_10) {
+    "use strict";
+    var core_1, AppNextCustomElementUtils;
+    var __moduleName = context_10 && context_10.id;
     return {
         setters: [
             function (core_1_1) {
                 core_1 = core_1_1;
-            },
-            function (data_3_1) {
-                data_3 = data_3_1;
             }
         ],
         execute: function () {
@@ -588,41 +664,59 @@ System.register("elements/base", ["core", "handlers/data"], function (exports_9,
                     this.container.innerHTML = '';
                 }
             };
-            AppNextCustomElement = class AppNextCustomElement extends HTMLElement {
-                constructor() {
-                    super();
-                    this.events = new data_3.AppNextDataEvents();
-                    this.utils = new AppNextCustomElementUtils(this);
-                }
-            };
-            exports_9("AppNextCustomElement", AppNextCustomElement);
+            exports_10("AppNextCustomElementUtils", AppNextCustomElementUtils);
         }
     };
 });
-System.register("elements/file-saver", ["elements/base", "handlers/error"], function (exports_10, context_10) {
+System.register("elements/base/element", ["elements/base/utils", "handlers/data"], function (exports_11, context_11) {
     "use strict";
-    var base_2, error_4, AppNextFileSaver;
-    var __moduleName = context_10 && context_10.id;
+    var utils_1, data_4, AppNextCustomElement;
+    var __moduleName = context_11 && context_11.id;
     return {
         setters: [
-            function (base_2_1) {
-                base_2 = base_2_1;
+            function (utils_1_1) {
+                utils_1 = utils_1_1;
             },
-            function (error_4_1) {
-                error_4 = error_4_1;
+            function (data_4_1) {
+                data_4 = data_4_1;
             }
         ],
         execute: function () {
-            AppNextFileSaver = class AppNextFileSaver extends base_2.AppNextCustomElement {
+            AppNextCustomElement = class AppNextCustomElement extends HTMLElement {
+                constructor() {
+                    super();
+                    this.events = new data_4.AppNextDataEvents();
+                    this.utils = new utils_1.AppNextCustomElementUtils(this);
+                }
+            };
+            exports_11("AppNextCustomElement", AppNextCustomElement);
+        }
+    };
+});
+System.register("elements/file-saver", ["elements/base/element", "handlers/error"], function (exports_12, context_12) {
+    "use strict";
+    var element_1, error_5, AppNextFileSaver;
+    var __moduleName = context_12 && context_12.id;
+    return {
+        setters: [
+            function (element_1_1) {
+                element_1 = element_1_1;
+            },
+            function (error_5_1) {
+                error_5 = error_5_1;
+            }
+        ],
+        execute: function () {
+            AppNextFileSaver = class AppNextFileSaver extends element_1.AppNextCustomElement {
                 render() {
                     const config = this.utils.config(), target = 'a';
                     this.utils.reset();
                     this.events.onCancel = config.oncancel;
                     if (!this.utils.support.attribute(target, 'download')) {
-                        return this.events.invokeCancelEvent(error_4.error(error_4.Errors.downloadNotSupported));
+                        return this.events.invokeCancelEvent(error_5.error(error_5.Errors.downloadNotSupported));
                     }
                     if (!(config.data instanceof Function)) {
-                        return this.events.invokeCancelEvent(error_4.error(error_4.Errors.invalidConfig));
+                        return this.events.invokeCancelEvent(error_5.error(error_5.Errors.invalidConfig));
                     }
                     try {
                         const element = this.utils.element(target), data = config.data.call(config), label = this.utils.attribute('label') || 'Save', name = this.utils.attribute('name') || new Date().getTime().toString(36), type = this.utils.attribute('type') || 'application/octet-stream';
@@ -633,10 +727,6 @@ System.register("elements/file-saver", ["elements/base", "handlers/error"], func
                         element.href = 'data:' + type + ',' + encodeURIComponent(data);
                         element.innerText = label;
                         element.onclick = element.ontouchend = () => {
-                            /*fetch(element.href).then(response => response.blob()).then(blob =>
-                            {
-                                
-                            })*/
                             this.events.invokeDataEvent({ data, name, type, size: (new TextEncoder().encode(data)).length });
                         };
                         this.events.invokeReadyEvent();
@@ -646,25 +736,25 @@ System.register("elements/file-saver", ["elements/base", "handlers/error"], func
                     }
                 }
             };
-            exports_10("AppNextFileSaver", AppNextFileSaver);
+            exports_12("AppNextFileSaver", AppNextFileSaver);
         }
     };
 });
-System.register("elements/media-picker", ["elements/base", "handlers/error"], function (exports_11, context_11) {
+System.register("elements/media-picker", ["elements/base/element", "handlers/error"], function (exports_13, context_13) {
     "use strict";
-    var base_3, error_5, AppNextMediaPicker;
-    var __moduleName = context_11 && context_11.id;
+    var element_2, error_6, AppNextMediaPicker;
+    var __moduleName = context_13 && context_13.id;
     return {
         setters: [
-            function (base_3_1) {
-                base_3 = base_3_1;
+            function (element_2_1) {
+                element_2 = element_2_1;
             },
-            function (error_5_1) {
-                error_5 = error_5_1;
+            function (error_6_1) {
+                error_6 = error_6_1;
             }
         ],
         execute: function () {
-            AppNextMediaPicker = class AppNextMediaPicker extends base_3.AppNextCustomElement {
+            AppNextMediaPicker = class AppNextMediaPicker extends element_2.AppNextCustomElement {
                 render() {
                     this.utils.reset();
                     const target = 'input', config = this.utils.config(), element = this.utils.element(target), type = this.utils.attribute('type'), single = this.utils.attribute('single'), source = this.utils.attribute('source');
@@ -678,7 +768,7 @@ System.register("elements/media-picker", ["elements/base", "handlers/error"], fu
                                 element.capture = source == 'auto' ? '' : source;
                             }
                             else {
-                                this.events.invokeCancelEvent(error_5.error(error_5.Errors.captureNotSupported));
+                                this.events.invokeCancelEvent(error_6.error(error_6.Errors.captureNotSupported));
                             }
                         }
                         if (type) {
@@ -686,7 +776,7 @@ System.register("elements/media-picker", ["elements/base", "handlers/error"], fu
                                 element.accept = type + '/*';
                             }
                             else {
-                                this.events.invokeCancelEvent(error_5.error(error_5.Errors.acceptNotSupported));
+                                this.events.invokeCancelEvent(error_6.error(error_6.Errors.acceptNotSupported));
                             }
                         }
                         element.multiple = single == null || single == undefined || single != '';
@@ -699,35 +789,62 @@ System.register("elements/media-picker", ["elements/base", "handlers/error"], fu
                     }
                 }
             };
-            exports_11("AppNextMediaPicker", AppNextMediaPicker);
+            exports_13("AppNextMediaPicker", AppNextMediaPicker);
         }
     };
 });
-System.register("setup", ["elements/file-saver", "elements/media-picker"], function (exports_12, context_12) {
+System.register("setup", ["handlers/background", "elements/file-saver", "elements/media-picker", "elements/base/element"], function (exports_14, context_14) {
     "use strict";
-    var file_saver_1, media_picker_1, AppNextCustomElementsRegistry, AppNextRenderer, AppNextSetup;
-    var __moduleName = context_12 && context_12.id;
+    var background_1, file_saver_1, media_picker_1, element_3, AppNextSetupRegistry, AppNextCustomElementsRegistry, AppNextServicesRegistry, AppNextRenderer, AppNextSetup;
+    var __moduleName = context_14 && context_14.id;
     return {
         setters: [
+            function (background_1_1) {
+                background_1 = background_1_1;
+            },
             function (file_saver_1_1) {
                 file_saver_1 = file_saver_1_1;
             },
             function (media_picker_1_1) {
                 media_picker_1 = media_picker_1_1;
+            },
+            function (element_3_1) {
+                element_3 = element_3_1;
             }
         ],
         execute: function () {
-            AppNextCustomElementsRegistry = class AppNextCustomElementsRegistry {
+            AppNextSetupRegistry = class AppNextSetupRegistry {
                 constructor() {
                     this.registry = {};
+                }
+                exists(key) {
+                    return this.registry[key] ? true : false;
+                }
+                update(key, value) {
+                    this.registry[key] = value;
+                }
+            };
+            AppNextCustomElementsRegistry = class AppNextCustomElementsRegistry extends AppNextSetupRegistry {
+                constructor() {
+                    super();
                     this.register('file-saver', file_saver_1.AppNextFileSaver);
                     this.register('media-picker', media_picker_1.AppNextMediaPicker);
+                    this.CustomElement = element_3.AppNextCustomElement;
                 }
                 register(name, ctor) {
-                    if (!customElements || this.registry[name])
-                        return;
+                    if (!customElements || this.exists(name))
+                        return null;
                     customElements.define(name, ctor);
-                    this.registry[name] = ctor;
+                    this.update(name, ctor);
+                    return ctor;
+                }
+            };
+            AppNextServicesRegistry = class AppNextServicesRegistry extends AppNextSetupRegistry {
+                register(path, worker) {
+                    if (!window.Worker || this.exists(path))
+                        return null;
+                    this.update(path, worker);
+                    return worker;
                 }
             };
             AppNextRenderer = class AppNextRenderer {
@@ -743,17 +860,26 @@ System.register("setup", ["elements/file-saver", "elements/media-picker"], funct
             };
             AppNextSetup = class AppNextSetup {
                 constructor() {
-                    const elements = new AppNextCustomElementsRegistry();
+                    this.register = {
+                        element: (name, ctor) => {
+                            return this.elements.register(name, ctor);
+                        },
+                        service: (name, script) => {
+                            return this.services.register(name, new background_1.AppNextBackgroundService(script));
+                        }
+                    };
+                    this.elements = new AppNextCustomElementsRegistry();
                     this.renderer = new AppNextRenderer();
+                    this.services = new AppNextServicesRegistry();
                     addEventListener('load', () => {
-                        this.renderer.custom(Object.keys(elements.registry));
+                        this.renderer.custom(Object.keys(this.elements.registry));
                     });
                 }
                 render(elements) {
                     this.renderer.render(elements);
                 }
             };
-            exports_12("AppNextSetup", AppNextSetup);
+            exports_14("AppNextSetup", AppNextSetup);
         }
     };
 });
@@ -766,6 +892,12 @@ this.AppNext = function(invoke)
     {
         const core = new modules[0].AppNextCore(),
               setup = new modules[1].AppNextSetup()
+
+        core.elements = setup.elements
+        core.register = setup.register
+        core.services = setup.services
+
+        core.CustomElement = core.elements.CustomElement
 
         core.render = elements => setup.render(elements)
 
