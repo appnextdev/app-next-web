@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>AppNext Test Page</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="base/style.css" />
+        <script src="base/utils.js"></script>
+        <script src="../dist/app-next-core.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/pretty-print-json@0.2/dist/pretty-print-json.min.js"></script>
+        <script>
+            AppNext(ctx =>
+            {
+                function getFutureTime(seconds)
+                {
+                    const now = new Date().getTime()
+
+                    return new Date(now + seconds * 1000)
+                }
+
+                const scheduler = ctx.register.scheduler()
+
+                scheduler.onCancel = () => notify('scheduler-cancel', true)
+                scheduler.onExecute = () => notify('task-exec', true)
+                scheduler.onReady = () => notify('scheduler-ready', true)
+                scheduler.onRegister = () => notify('task-create', true)
+
+                scheduler.start()
+
+                scheduler.post
+                ({
+                    when: getFutureTime(3),
+                    what: () =>
+                    {
+                        output('task-output', { task: 'Like a 😎' })
+
+                        scheduler.stop()
+                    }
+                })
+            })
+        </script>
+    </head>
+    <body>
+        <h1>AppNext Tasks Scheduler Test Suit</h1>
+        <label id="scheduler-ready" class="test">Scheduler is ready for action</label>
+        <label id="task-create" class="test">Task successfully registered in scheduler</label>
+        <label id="task-exec" class="test">Task executed by scheduler</label>
+        <label id="scheduler-cancel" class="test">Scheduler successfully stopped</label>
+        <pre id="task-output" class="output"></pre>
+    </body>
+</html>

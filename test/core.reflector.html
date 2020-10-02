@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>AppNext Test Page</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="base/style.css" />
+        <script src="base/utils.js"></script>
+        <script src="../dist/app-next-core.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/pretty-print-json@0.2/dist/pretty-print-json.min.js"></script>
+        <script>
+            AppNext(ctx =>
+            {
+                const valid = true
+
+                const reflector = ctx.register.reflector
+                ({
+                    onMemberAttach: (object, name, value) =>
+                    {
+                        notify('reflector-ready', true)
+                        notify('member-create', true)
+                        output('members-output', { name, value, action: 'New member created' }, true)
+                    },
+
+                    onMemberRemove: (object, name) =>
+                    {
+                        switch (name)
+                        {
+                            case 'a': 
+                                return valid = false
+
+                            case 'b':
+                                notify('member-remove', true)
+                                output('members-output', { name, action: 'Member removed' }, true)
+                        }
+                    },
+
+                    onMemberUpdate: (object, name, value) =>
+                    {
+                        notify('member-update', true)
+                        output('members-output', { name, value, action: 'Member updated' }, true)
+                    }
+                })
+
+                const object = reflector.attach({ a: 10 })
+
+                object.b = true
+                object.a += object.b
+                delete object.b
+
+                reflector.stop()
+
+                delete object.a
+
+                setTimeout(() => notify('reflector-cancel', valid), 100)
+            })
+        </script>
+    </head>
+    <body>
+        <h1>AppNext Objects Reflector Test Suit</h1>
+        <label id="reflector-ready" class="test">Reflector successfully started</label>
+        <label id="member-create" class="test">Reflector reflects new member creation</label>
+        <label id="member-update" class="test">Reflector reflects member update</label>
+        <label id="member-remove" class="test">Reflector reflects member removal from object</label>
+        <label id="reflector-cancel" class="test">Reflector successfully stopped</label>
+        <pre id="members-output" class="output"></pre>
+    </body>
+</html>

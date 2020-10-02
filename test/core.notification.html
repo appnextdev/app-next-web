@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>AppNext Test Page</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="base/style.css" />
+        <script src="base/utils.js"></script>
+        <script src="../dist/app-next-core.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/pretty-print-json@0.2/dist/pretty-print-json.min.js"></script>
+        <script>
+            AppNext(ctx =>
+            {
+                const manager = ctx.providers.notifications()
+
+                manager.onCancel = () => notify('manager-stop', true)
+                manager.onError = () => 
+                {
+                    notify('notification-create', false)
+                    notify('notification-wait', false)
+                    notify('notification-show', false)
+                    notify('notification-cancel', false)
+                }
+
+                manager.onData = notification => 
+                {
+                    notify('notification-create', true)
+                    output('notification-output', notification)
+                }
+
+                manager.onReady = () => notify('manager-ready', true)
+
+                manager.start()
+
+                manager.create('Test Notification',
+                {
+                    onCancel: () => notify('notification-cancel', true),
+                    onError: () =>
+                    {
+                        notify('notification-cancel', false)
+                        notify('notification-show', false)
+                    },
+                    onPending: () => notify('notification-wait', true),
+                    onReady: () => notify('notification-show', true)
+                },
+                {
+                    body: 'I 😍 Notifications',
+                    image: '../assets/logo.png'
+                })
+
+                setTimeout(() => manager.stop(), 7000)
+            })
+        </script>
+    </head>
+    <body>
+        <h1>AppNext Notification Provider Test Suit</h1>
+        <ul class="info">
+            <li>This test requires user action to complete</li> 
+            <li>Note: this test cannot be completed if not running from a trusted origin (https)</li>
+            <li>Grant notification permission if asked</li>
+            <li>Close notification to complete this test suit (or wait for manager to terminate notification)</li>
+        </ul>
+        <br/>
+        <label id="manager-ready" class="test">Notifications manager started</label>
+        <label id="notification-create" class="test">Notification sucessfully created</label>
+        <label id="notification-wait" class="test">Wait until notification is displayed to the user</label>
+        <label id="notification-show" class="test">Notification properly displayed to the user</label>
+        <label id="notification-cancel" class="test">Notification properly closed</label>
+        <label id="manager-stop" class="test">Notifications manager stopped</label>
+        <pre id="notification-output" class="output"></pre>
+    </body>
+</html>

@@ -115,7 +115,7 @@
                     throw error()
                 }
 
-                service.start(); service.send({ action: 'start' })
+                service.start(); service.post({ action: 'start' })
             })
         </script>
     </head>

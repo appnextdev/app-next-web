@@ -34,8 +34,14 @@ How can you tell if this project supports your app requirements? By default, *Ap
 * Elements
     * [File Saver](/test/core.file-saver.html) - save data from your app as a file in hosting device
     * [Media Picker](/test/core.media-picker.html) - capture or select audio, images and videos
+* Providers
+    * [Geolocation](/test/core.geolocation.html) - capture device current location and listen to position changes
+    * [Notifications](/test/core.notification.html) - manage application notifications
 * Sensors
     * [Accelerometer](/test/core.accelerometer.html) - get x,y,z coordinates of device acceleration forces
-    * [Geolocation](/test/core.geolocation.html) - capture device current location and listen to position changes
+* Utils
+    * [Objects Reflector](/test/core.reflector.html) - attach objects and reflect changes on them when their values changed
+    * [Tasks Scheduler](/test/core.scheduler.html) - manage scheduled tasks (can be combined to fire notifications as well)
+    
 
 

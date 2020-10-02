@@ -6,6 +6,15 @@ System.register("handlers/data", [], function (exports_1, context_1) {
         setters: [],
         execute: function () {
             AppNextDataEvents = class AppNextDataEvents {
+                static from(listeners) {
+                    const handler = new AppNextDataEvents();
+                    handler.onCancel = listeners.onCancel;
+                    handler.onData = listeners.onData;
+                    handler.onError = listeners.onError;
+                    handler.onPending = listeners.onPending;
+                    handler.onReady = listeners.onReady;
+                    return handler;
+                }
                 set onCancel(listener) { this.cancel = listener; }
                 set onData(listener) { this.data = listener; }
                 set onError(listener) { this.error = listener; }
@@ -79,7 +88,8 @@ System.register("handlers/error", [], function (exports_2, context_2) {
                 Errors[Errors["featureTerminated"] = 3] = "featureTerminated";
                 Errors[Errors["invalidConfig"] = 4] = "invalidConfig";
                 Errors[Errors["invalidFactoryFunction"] = 5] = "invalidFactoryFunction";
-                Errors[Errors["permissionDenied"] = 6] = "permissionDenied";
+                Errors[Errors["notificationError"] = 6] = "notificationError";
+                Errors[Errors["permissionDenied"] = 7] = "permissionDenied";
             })(Errors || (Errors = {}));
             exports_2("Errors", Errors);
             errors = {
@@ -89,6 +99,7 @@ System.register("handlers/error", [], function (exports_2, context_2) {
                 featureTerminated: { name: 'feature terminated', message: 'Current feature terminated due to user action' },
                 invalidConfig: { name: 'invalid config', message: 'Config object is missing required members' },
                 invalidFactoryFunction: { name: 'invalid factory', message: 'Factory function must provide a valid handler instance' },
+                notificationError: { name: 'notification error', message: 'An error raised while handling notification' },
                 permissionDenied: { name: 'permission denied', message: 'Requested permission denied by user' }
             };
         }
@@ -119,7 +130,8 @@ System.register("providers/permission", ["handlers/data", "handlers/error"], fun
                             switch (permission.state) {
                                 case 'granted': return provider.invokeReadyEvent();
                                 case 'prompt': return provider.invokePendingEvent();
-                                case 'denied': return provider.invokeCancelEvent(error_1.error(error_1.Errors.permissionDenied));
+                                case 'denied':
+                                default: return provider.invokeCancelEvent(error_1.error(error_1.Errors.permissionDenied));
                             }
                         }
                         catch (error) {
@@ -318,16 +330,70 @@ System.register("sensors/accelerometer", ["sensors/base/sensor"], function (expo
         }
     };
 });
-System.register("core", ["providers/geolocation", "sensors/accelerometer"], function (exports_8, context_8) {
+System.register("providers/notifications", ["handlers/watch", "handlers/error", "handlers/data"], function (exports_8, context_8) {
     "use strict";
-    var geolocation_1, accelerometer_1, AppNextCore;
+    var watch_3, error_4, data_3, AppNextNotificationsProvider;
     var __moduleName = context_8 && context_8.id;
+    return {
+        setters: [
+            function (watch_3_1) {
+                watch_3 = watch_3_1;
+            },
+            function (error_4_1) {
+                error_4 = error_4_1;
+            },
+            function (data_3_1) {
+                data_3 = data_3_1;
+            }
+        ],
+        execute: function () {
+            AppNextNotificationsProvider = class AppNextNotificationsProvider extends watch_3.AppNextWatch {
+                constructor() {
+                    super('notifications');
+                    this.notifications = [];
+                }
+                create(title, listeners, options) {
+                    if (!this.active)
+                        return;
+                    const events = data_3.AppNextDataEvents.from(listeners), notification = new Notification(title, options);
+                    notification.onclose = () => events.invokeCancelEvent(error_4.error(error_4.Errors.featureTerminated));
+                    notification.onerror = () => events.invokeErrorEvent(error_4.error(error_4.Errors.notificationError));
+                    notification.onclick = event => events.invokeDataEvent(event);
+                    notification.onshow = () => events.invokeReadyEvent();
+                    this.notifications.push(notification);
+                    events.invokePendingEvent();
+                    this.invokeDataEvent(notification);
+                }
+                start() {
+                    this.active = true;
+                    this.invokeReadyEvent();
+                }
+                stop() {
+                    this.active = false;
+                    try {
+                        this.notifications.forEach(notification => notification.close());
+                        this.notifications.splice(0, this.notifications.length);
+                        this.invokeCancelEvent(error_4.error(error_4.Errors.featureTerminated));
+                    }
+                    catch (error) {
+                        this.invokeErrorEvent(error);
+                    }
+                }
+            };
+            exports_8("AppNextNotificationsProvider", AppNextNotificationsProvider);
+        }
+    };
+});
+System.register("core", ["providers/geolocation", "sensors/accelerometer", "providers/notifications"], function (exports_9, context_9) {
+    "use strict";
+    var geolocation_1, accelerometer_1, notifications_1, AppNextCore;
+    var __moduleName = context_9 && context_9.id;
     function config(name) {
         const object = (AppNextCore.config || {})[name] || {};
         object.name = name;
         return object;
     }
-    exports_8("config", config);
+    exports_9("config", config);
     return {
         setters: [
             function (geolocation_1_1) {
@@ -335,6 +401,9 @@ System.register("core", ["providers/geolocation", "sensors/accelerometer"], func
             },
             function (accelerometer_1_1) {
                 accelerometer_1 = accelerometer_1_1;
+            },
+            function (notifications_1_1) {
+                notifications_1 = notifications_1_1;
             }
         ],
         execute: function () {
@@ -342,7 +411,8 @@ System.register("core", ["providers/geolocation", "sensors/accelerometer"], func
                 constructor() {
                     this.providers =
                         {
-                            geolocation: (options) => new geolocation_1.AppNextGeoLocationProvider(options)
+                            geolocation: (options) => new geolocation_1.AppNextGeoLocationProvider(options),
+                            notifications: () => new notifications_1.AppNextNotificationsProvider()
                         };
                     this.sensors =
                         {
@@ -351,25 +421,25 @@ System.register("core", ["providers/geolocation", "sensors/accelerometer"], func
                 }
                 config(value) { AppNextCore.config = value || {}; }
             };
-            exports_8("AppNextCore", AppNextCore);
+            exports_9("AppNextCore", AppNextCore);
         }
     };
 });
-System.register("handlers/background", ["handlers/data", "handlers/error"], function (exports_9, context_9) {
+System.register("handlers/background", ["handlers/data", "handlers/error"], function (exports_10, context_10) {
     "use strict";
-    var data_3, error_4, AppNextBackgroundService;
-    var __moduleName = context_9 && context_9.id;
+    var data_4, error_5, AppNextBackgroundService;
+    var __moduleName = context_10 && context_10.id;
     return {
         setters: [
-            function (data_3_1) {
-                data_3 = data_3_1;
+            function (data_4_1) {
+                data_4 = data_4_1;
             },
-            function (error_4_1) {
-                error_4 = error_4_1;
+            function (error_5_1) {
+                error_5 = error_5_1;
             }
         ],
         execute: function () {
-            AppNextBackgroundService = class AppNextBackgroundService extends data_3.AppNextDataEvents {
+            AppNextBackgroundService = class AppNextBackgroundService extends data_4.AppNextDataEvents {
                 constructor(script) {
                     super();
                     this.code = 'data:application/x-javascript;base64,' + btoa(script);
@@ -385,7 +455,7 @@ System.register("handlers/background", ["handlers/data", "handlers/error"], func
                         this.invokeCancelEvent(error);
                     }
                 }
-                send(data) {
+                post(data) {
                     this.worker.postMessage(data);
                 }
                 start() {
@@ -408,11 +478,11 @@ System.register("handlers/background", ["handlers/data", "handlers/error"], func
                 stop(data) {
                     try {
                         if (arguments.length == 1)
-                            this.send(data);
+                            this.post(data);
                         setTimeout(() => {
                             this.worker.terminate();
                             this.worker.onerror = this.worker.onmessage = null;
-                            this.invokeCancelEvent(error_4.error(error_4.Errors.featureTerminated));
+                            this.invokeCancelEvent(error_5.error(error_5.Errors.featureTerminated));
                         }, 10);
                     }
                     catch (error) {
@@ -420,14 +490,14 @@ System.register("handlers/background", ["handlers/data", "handlers/error"], func
                     }
                 }
             };
-            exports_9("AppNextBackgroundService", AppNextBackgroundService);
+            exports_10("AppNextBackgroundService", AppNextBackgroundService);
         }
     };
 });
-System.register("elements/base/utils", ["core"], function (exports_10, context_10) {
+System.register("elements/base/utils", ["core"], function (exports_11, context_11) {
     "use strict";
     var core_1, AppNextCustomElementUtils;
-    var __moduleName = context_10 && context_10.id;
+    var __moduleName = context_11 && context_11.id;
     return {
         setters: [
             function (core_1_1) {
@@ -467,46 +537,46 @@ System.register("elements/base/utils", ["core"], function (exports_10, context_1
                     this.container.innerHTML = '';
                 }
             };
-            exports_10("AppNextCustomElementUtils", AppNextCustomElementUtils);
+            exports_11("AppNextCustomElementUtils", AppNextCustomElementUtils);
         }
     };
 });
-System.register("elements/base/element", ["elements/base/utils", "handlers/data"], function (exports_11, context_11) {
+System.register("elements/base/element", ["elements/base/utils", "handlers/data"], function (exports_12, context_12) {
     "use strict";
-    var utils_1, data_4, AppNextCustomElement;
-    var __moduleName = context_11 && context_11.id;
+    var utils_1, data_5, AppNextCustomElement;
+    var __moduleName = context_12 && context_12.id;
     return {
         setters: [
             function (utils_1_1) {
                 utils_1 = utils_1_1;
             },
-            function (data_4_1) {
-                data_4 = data_4_1;
+            function (data_5_1) {
+                data_5 = data_5_1;
             }
         ],
         execute: function () {
             AppNextCustomElement = class AppNextCustomElement extends HTMLElement {
                 constructor() {
                     super();
-                    this.events = new data_4.AppNextDataEvents();
+                    this.events = new data_5.AppNextDataEvents();
                     this.utils = new utils_1.AppNextCustomElementUtils(this);
                 }
             };
-            exports_11("AppNextCustomElement", AppNextCustomElement);
+            exports_12("AppNextCustomElement", AppNextCustomElement);
         }
     };
 });
-System.register("elements/file-saver", ["elements/base/element", "handlers/error"], function (exports_12, context_12) {
+System.register("elements/file-saver", ["elements/base/element", "handlers/error"], function (exports_13, context_13) {
     "use strict";
-    var element_1, error_5, AppNextFileSaver;
-    var __moduleName = context_12 && context_12.id;
+    var element_1, error_6, AppNextFileSaver;
+    var __moduleName = context_13 && context_13.id;
     return {
         setters: [
             function (element_1_1) {
                 element_1 = element_1_1;
             },
-            function (error_5_1) {
-                error_5 = error_5_1;
+            function (error_6_1) {
+                error_6 = error_6_1;
             }
         ],
         execute: function () {
@@ -516,10 +586,10 @@ System.register("elements/file-saver", ["elements/base/element", "handlers/error
                     this.utils.reset();
                     this.events.onCancel = config.oncancel;
                     if (!this.utils.support.attribute(target, 'download')) {
-                        return this.events.invokeCancelEvent(error_5.error(error_5.Errors.downloadNotSupported));
+                        return this.events.invokeCancelEvent(error_6.error(error_6.Errors.downloadNotSupported));
                     }
                     if (!(config.data instanceof Function)) {
-                        return this.events.invokeCancelEvent(error_5.error(error_5.Errors.invalidConfig));
+                        return this.events.invokeCancelEvent(error_6.error(error_6.Errors.invalidConfig));
                     }
                     try {
                         const element = this.utils.element(target), data = config.data.call(config), label = this.utils.attribute('label') || 'Save', name = this.utils.attribute('name') || new Date().getTime().toString(36), type = this.utils.attribute('type') || 'application/octet-stream';
@@ -539,21 +609,21 @@ System.register("elements/file-saver", ["elements/base/element", "handlers/error
                     }
                 }
             };
-            exports_12("AppNextFileSaver", AppNextFileSaver);
+            exports_13("AppNextFileSaver", AppNextFileSaver);
         }
     };
 });
-System.register("elements/media-picker", ["elements/base/element", "handlers/error"], function (exports_13, context_13) {
+System.register("elements/media-picker", ["elements/base/element", "handlers/error"], function (exports_14, context_14) {
     "use strict";
-    var element_2, error_6, AppNextMediaPicker;
-    var __moduleName = context_13 && context_13.id;
+    var element_2, error_7, AppNextMediaPicker;
+    var __moduleName = context_14 && context_14.id;
     return {
         setters: [
             function (element_2_1) {
                 element_2 = element_2_1;
             },
-            function (error_6_1) {
-                error_6 = error_6_1;
+            function (error_7_1) {
+                error_7 = error_7_1;
             }
         ],
         execute: function () {
@@ -571,7 +641,7 @@ System.register("elements/media-picker", ["elements/base/element", "handlers/err
                                 element.capture = source == 'auto' ? '' : source;
                             }
                             else {
-                                this.events.invokeCancelEvent(error_6.error(error_6.Errors.captureNotSupported));
+                                this.events.invokeCancelEvent(error_7.error(error_7.Errors.captureNotSupported));
                             }
                         }
                         if (type) {
@@ -579,7 +649,7 @@ System.register("elements/media-picker", ["elements/base/element", "handlers/err
                                 element.accept = type + '/*';
                             }
                             else {
-                                this.events.invokeCancelEvent(error_6.error(error_6.Errors.acceptNotSupported));
+                                this.events.invokeCancelEvent(error_7.error(error_7.Errors.acceptNotSupported));
                             }
                         }
                         element.multiple = single == null || single == undefined || single != '';
@@ -592,18 +662,176 @@ System.register("elements/media-picker", ["elements/base/element", "handlers/err
                     }
                 }
             };
-            exports_13("AppNextMediaPicker", AppNextMediaPicker);
+            exports_14("AppNextMediaPicker", AppNextMediaPicker);
         }
     };
 });
-System.register("setup", ["handlers/background", "elements/file-saver", "elements/media-picker", "elements/base/element"], function (exports_14, context_14) {
+System.register("handlers/scheduler", ["handlers/background"], function (exports_15, context_15) {
     "use strict";
-    var background_1, file_saver_1, media_picker_1, element_3, AppNextSetupRegistry, AppNextCustomElementsRegistry, AppNextServicesRegistry, AppNextRenderer, AppNextSetup;
-    var __moduleName = context_14 && context_14.id;
+    var background_1, AppNextScheduler;
+    var __moduleName = context_15 && context_15.id;
     return {
         setters: [
             function (background_1_1) {
                 background_1 = background_1_1;
+            }
+        ],
+        execute: function () {
+            AppNextScheduler = class AppNextScheduler extends background_1.AppNextBackgroundService {
+                constructor(seconds = 1) {
+                    super(`
+            function handleError(error)
+            {
+                throw error
+            }
+
+            const tasks = []
+
+            setInterval(() =>
+            {
+                const count = tasks.length,
+                      now = new Date().getTime()
+    
+                for (let i = 0; i < count; i++)
+                {
+                    const task = tasks.shift()
+
+                    try
+                    {
+                        if (now > task.when)
+                        {
+                            postMessage(task)
+                        }
+                        else
+                        {
+                            tasks.push(task)
+                        }
+                    }
+                    catch(error)
+                    {
+                        handleError(error)
+                    }
+                }
+
+            }, ${seconds * 1000})
+
+            onmessage = event =>
+            {
+                try
+                {
+                    const task = event.data
+
+                    if (!(task.when instanceof Date) || !(task.key))
+                    {
+                        const error = new Error('Invalid task object')
+
+                        error.name = 'invalid task'; handleError(error)
+                    }
+
+                    task.when.setSeconds(0); task.when.setMilliseconds(0)
+                    task.when = task.when.getTime(); tasks.push(task)
+                }
+                catch(error)
+                {
+                    handleError(error)
+                }
+            }
+        `);
+                    this.tasks = {};
+                    this.onData = event => {
+                        const task = this.tasks[event.data.key];
+                        if (!task)
+                            return;
+                        task.what.call(task.context || {});
+                        this.invokeExecuteEvent(task);
+                    };
+                }
+                set onExecute(listener) { this.execute = listener; }
+                set onRegister(listener) { this.register = listener; }
+                invokeExecuteEvent(task) {
+                    if (this.execute)
+                        this.execute(task);
+                }
+                invokeRegisterEvent(task) {
+                    if (this.register)
+                        this.register(task);
+                }
+                post(task) {
+                    const key = new Date().getTime().toString(36);
+                    this.tasks[key] = task;
+                    super.post({ key, when: task.when });
+                    this.invokeRegisterEvent(task);
+                }
+            };
+            exports_15("AppNextScheduler", AppNextScheduler);
+        }
+    };
+});
+System.register("handlers/reflector", [], function (exports_16, context_16) {
+    "use strict";
+    var AppNextReflector;
+    var __moduleName = context_16 && context_16.id;
+    return {
+        setters: [],
+        execute: function () {
+            AppNextReflector = class AppNextReflector {
+                constructor(events) {
+                    this.events = events;
+                    this.start();
+                }
+                invoke(name, args = []) {
+                    const handler = this.events[name];
+                    if (this.active && handler instanceof Function)
+                        handler.apply(this, args);
+                }
+                attach(object) {
+                    return object instanceof Object ? new Proxy(object, {
+                        deleteProperty: (target, name) => {
+                            if (name in target) {
+                                delete target[name];
+                                this.invoke('onMemberRemove', [target, name]);
+                                return true;
+                            }
+                            return false;
+                        },
+                        set: (target, name, value) => {
+                            var method;
+                            if (name in target) {
+                                value =
+                                    {
+                                        current: value,
+                                        previous: target[name] instanceof Object ? JSON.parse(JSON.stringify(target[name])) : target[name]
+                                    };
+                                method = 'onMemberUpdate';
+                            }
+                            else {
+                                method = 'onMemberAttach';
+                            }
+                            target[name] = value;
+                            this.invoke(method, [target, name, value]);
+                            return true;
+                        }
+                    }) : null;
+                }
+                start() {
+                    this.active = true;
+                }
+                stop() {
+                    this.active = false;
+                }
+            };
+            exports_16("AppNextReflector", AppNextReflector);
+        }
+    };
+});
+System.register("setup", ["handlers/background", "elements/file-saver", "elements/media-picker", "elements/base/element", "handlers/scheduler", "handlers/reflector"], function (exports_17, context_17) {
+    "use strict";
+    var background_2, file_saver_1, media_picker_1, element_3, scheduler_1, reflector_1, AppNextSetupRegistry, AppNextCustomElementsRegistry, AppNextServicesRegistry, AppNextRenderer, AppNextSetup;
+    var __moduleName = context_17 && context_17.id;
+    return {
+        setters: [
+            function (background_2_1) {
+                background_2 = background_2_1;
             },
             function (file_saver_1_1) {
                 file_saver_1 = file_saver_1_1;
@@ -613,6 +841,12 @@ System.register("setup", ["handlers/background", "elements/file-saver", "element
             },
             function (element_3_1) {
                 element_3 = element_3_1;
+            },
+            function (scheduler_1_1) {
+                scheduler_1 = scheduler_1_1;
+            },
+            function (reflector_1_1) {
+                reflector_1 = reflector_1_1;
             }
         ],
         execute: function () {
@@ -667,8 +901,17 @@ System.register("setup", ["handlers/background", "elements/file-saver", "element
                         element: (name, ctor) => {
                             return this.elements.register(name, ctor);
                         },
+                        reflector: (events) => {
+                            return new reflector_1.AppNextReflector(events);
+                        },
+                        scheduler: (seconds) => {
+                            if (!this.scheduler) {
+                                this.scheduler = new scheduler_1.AppNextScheduler(seconds);
+                            }
+                            return this.scheduler;
+                        },
                         service: (name, script) => {
-                            return this.services.register(name, new background_1.AppNextBackgroundService(script));
+                            return this.services.register(name, new background_2.AppNextBackgroundService(script));
                         }
                     };
                     this.elements = new AppNextCustomElementsRegistry();
@@ -682,7 +925,7 @@ System.register("setup", ["handlers/background", "elements/file-saver", "element
                     this.renderer.render(elements);
                 }
             };
-            exports_14("AppNextSetup", AppNextSetup);
+            exports_17("AppNextSetup", AppNextSetup);
         }
     };
 });
