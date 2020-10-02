@@ -13,12 +13,14 @@
                 const manager = ctx.providers.notifications()
 
                 manager.onCancel = () => notify('manager-stop', true)
-                manager.onError = () => 
+                manager.onError = error => 
                 {
                     notify('notification-create', false)
                     notify('notification-wait', false)
                     notify('notification-show', false)
                     notify('notification-cancel', false)
+
+                    output('notification-output', error)
                 }
 
                 manager.onData = notification => 

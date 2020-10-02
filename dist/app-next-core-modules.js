@@ -728,7 +728,7 @@ System.register("handlers/scheduler", ["handlers/background"], function (exports
                         error.name = 'invalid task'; handleError(error)
                     }
 
-                    task.when.setSeconds(0); task.when.setMilliseconds(0)
+                    task.when.setMilliseconds(0)
                     task.when = task.when.getTime(); tasks.push(task)
                 }
                 catch(error)

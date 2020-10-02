@@ -31,11 +31,13 @@
                     when: getFutureTime(3),
                     what: () =>
                     {
-                        output('task-output', { task: 'Like a 😎' })
+                        output('task-output', { task: 'Like a 😎' }, true)
 
                         scheduler.stop()
                     }
                 })
+
+                output('task-output', { you: 'Waiting for task to execute' })
             })
         </script>
     </head>
