@@ -12,7 +12,7 @@ body
 {
   display: block;
   margin: 0 auto;
-  height: 4em;
+  height: 11em;
   border-radius: 50%;
 }
 
@@ -27,7 +27,7 @@ a.git.btn
 a.git.btn > img
 {
   display: block;
-  height: 11em;
+  height: 4em;
   margin: 0 auto;
 }
 
