@@ -20,6 +20,7 @@
                 const scheduler = ctx.register.scheduler()
 
                 scheduler.onCancel = () => notify('scheduler-cancel', true)
+                scheduler.onError = error => output('task-output', error)
                 scheduler.onExecute = () => notify('task-exec', true)
                 scheduler.onReady = () => notify('scheduler-ready', true)
                 scheduler.onRegister = () => notify('task-create', true)

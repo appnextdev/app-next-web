@@ -31,9 +31,11 @@ function notify(id, ok)
 
 function output(id, data, append)
 {
-    console.info(data)
+    const error = data instanceof Error
 
-    const json = JSON.parse(JSON.stringify(clone(data)))
+    error ? console.error(error) : console.info(data)
+
+    const json = JSON.parse(JSON.stringify(clone(error ? { name: error.name, message: error.message } : data)))
 
     update(id, 'show'); element(id).then(element => 
     {

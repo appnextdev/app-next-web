@@ -29,7 +29,7 @@
 
                 geoloc.onData = position => 
                 {
-                    output('position', position, true)
+                    output('position-output', position, true)
 
                     notify('geolocation-position', true)
                 }
@@ -44,7 +44,7 @@
                     {
                         notify('geolocation-error', false)
 
-                        output('position', error)
+                        output('position-output', error)
                     }
                 }
 
@@ -74,6 +74,6 @@
         <label id="geolocation-position" class="test">Geolocation is sending position data</label>
         <label id="geolocation-cancel" class="test">Geolocation is stopped properly</label>
         <label id="geolocation-error" class="test">Error handled by geolocation provider</label>
-        <pre id="position" class="output"></pre>
+        <pre id="position-output" class="output"></pre>
     </body>
 </html>

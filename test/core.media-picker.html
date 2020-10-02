@@ -32,6 +32,10 @@
                             }
 
                             notify(name + '-media', false)
+                        },
+                        onerror: error =>
+                        {
+                            output(name + '-output', error)
                         }
                     }
                 }

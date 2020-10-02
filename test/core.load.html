@@ -87,7 +87,7 @@
                 {
                     notify('service-data', true)
 
-                    output('service', event.data, true)
+                    output('service-output', event.data, true)
                 }
                 
                 service.onError = error =>
@@ -100,7 +100,7 @@
                     {
                         notify('service-error', false)
 
-                        output('service', error)
+                        output('service-output', error)
                     }
                 }
 
@@ -137,6 +137,6 @@
         <label id="service-data" class="test">Background service recieves data properly</label>
         <label id="service-cancel" class="test">Background service is stopped properly</label>
         <label id="service-error" class="test">Error handled by background service</label>
-        <pre id="service" class="output"></pre>
+        <pre id="service-output" class="output"></pre>
     </body>
 </html>

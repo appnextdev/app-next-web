@@ -29,7 +29,7 @@
 
                 acc.onData = accelerometer => 
                 {
-                    output('coordinate', accelerometer, true)
+                    output('coordinate-output', accelerometer, true)
 
                     notify('accelerometer-position', true)
                 }
@@ -44,7 +44,7 @@
                     {
                         notify('accelerometer-error', false)
 
-                        console.error(error)
+                        output('coordinate-output', error)
                     }
                 }
 
@@ -69,11 +69,11 @@
             <li>This test requires user action to complete</li> 
             <li>Approve / reject accelerometer to proceed</li>
         </ul>
-        <label id="accelerometer-wait" class="test">Wait for accelerometer permission from user</label>
+        <label id="accelerometer-wait" class="test">Wait for accelerometer permission</label>
         <label id="accelerometer-ready" class="test">Accelerometer is ready for sending position data</label>
         <label id="accelerometer-position" class="test">Accelerometer is sending position data</label>
         <label id="accelerometer-cancel" class="test">Accelerometer is stopped properly</label>
         <label id="accelerometer-error" class="test">Error handled by accelerometer provider</label>
-        <pre id="coordinate" class="output"></pre>
+        <pre id="coordinate-output" class="output"></pre>
     </body>
 </html>
