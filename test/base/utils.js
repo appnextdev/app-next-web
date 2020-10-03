@@ -14,7 +14,7 @@ function clone(object)
 
 function element(id)
 {
-    return wait(500, () => document.getElementById(id))
+    return wait(100, () => document.getElementById(id))
 }
 
 function error()
@@ -57,11 +57,16 @@ function wait(interval, criteria)
 {
     return new Promise(resolve =>
     {
-        setTimeout(() => 
+        const id = setInterval(() => 
         {
             const result = criteria()
 
-            if (result) resolve(result)
+            if (result) 
+            {
+                clearInterval(id)
+                
+                resolve(result)
+            }
 
         }, interval)
     })

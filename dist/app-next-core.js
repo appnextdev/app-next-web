@@ -341,31 +341,11 @@ System.register("providers/permission", ["handlers/data", "handlers/error"], fun
                     }
                 }
                 register() {
-                    /*function handlePermission(permission: PermissionStatus)
-                    {
-                        try
-                        {
-                            switch (permission.state)
-                            {
-                                case 'granted': return provider.invokeReadyEvent()
-                                case 'prompt': return provider.invokePendingEvent()
-                                case 'denied': default: return provider.invokeCancelEvent(error(Errors.permissionDenied))
-                            }
-                        }
-                        catch (error)
-                        {
-                            provider.invokeErrorEvent(error)
-                        }
-                    }
-            
-                    const provider = this*/
                     const request = this.permissions.map(permission => navigator.permissions.query({ name: permission }));
                     return Promise.all(request).then(permissions => {
                         permissions.forEach(permission => {
                             this.handle(permission.state);
                             permission.onchange = () => this.handle(permission.state);
-                            //handlePermission(permission)
-                            //permission.onchange = () => handlePermission(permission)
                         });
                     });
                 }
@@ -425,32 +405,38 @@ System.register("providers/geolocation", ["handlers/watch", "handlers/error"], f
                     this.options = options;
                 }
                 start() {
-                    var init = true;
-                    this.id = navigator.geolocation.watchPosition(position => {
-                        if (init) {
-                            init = false;
-                            this.invokeReadyEvent();
-                        }
-                        this.invokeDataEvent(position);
-                    }, error => {
-                        if (init) {
-                            this.invokeCancelEvent(new Error(error.message));
-                        }
-                        else {
-                            this.invokeErrorEvent(new Error(error.message));
-                        }
-                    }, this.options || {});
+                    return new Promise((resolve, reject) => {
+                        var init = true;
+                        this.id = navigator.geolocation.watchPosition(position => {
+                            if (init) {
+                                init = false;
+                                this.invokeReadyEvent();
+                            }
+                            this.invokeDataEvent(position);
+                            resolve();
+                        }, error => {
+                            if (init) {
+                                this.invokeCancelEvent(new Error(error.message));
+                            }
+                            else {
+                                this.invokeErrorEvent(new Error(error.message));
+                            }
+                            reject();
+                        }, this.options || {});
+                    });
                 }
                 stop() {
+                    if (!this.id)
+                        return false;
                     try {
-                        if (!this.id)
-                            return;
                         navigator.geolocation.clearWatch(this.id);
                         this.id = null;
                         this.invokeCancelEvent(error_2.error(error_2.Errors.featureTerminated));
+                        return true;
                     }
                     catch (error) {
                         this.invokeErrorEvent(error);
+                        return false;
                     }
                 }
             };
@@ -503,9 +489,10 @@ System.register("sensors/base/sensor", ["handlers/watch", "handlers/error"], fun
                     };
                     if (this.handler) {
                         invoke();
+                        return Promise.resolve();
                     }
                     else {
-                        this.request().then(() => {
+                        return this.request().then(() => {
                             this.handler.onerror = event => {
                                 switch (event.error.name) {
                                     case 'NotAllowedError':
@@ -517,14 +504,18 @@ System.register("sensors/base/sensor", ["handlers/watch", "handlers/error"], fun
                             };
                             this.handler.onreading = () => this.invokeDataEvent(this.handler);
                             invoke();
-                        }).catch(error => this.invokeErrorEvent(error));
+                        }).catch(error => {
+                            this.invokeErrorEvent(error);
+                        });
                     }
                 }
                 stop() {
                     if (this.handler) {
                         this.handler.stop();
                         this.invokeCancelEvent(error_3.error(error_3.Errors.featureTerminated));
+                        return true;
                     }
+                    return false;
                 }
             };
             exports_6("AppNextSensor", AppNextSensor);
@@ -620,12 +611,13 @@ System.register("providers/notifications", ["handlers/watch", "handlers/error", 
                         const message = event.data;
                         switch (message.source) {
                             case 'notification':
-                                const registry = this.registry[message.data];
-                                if (!registry)
+                                const id = message.data, registry = this.registry[id];
+                                if (!id || !registry)
                                     return;
                                 switch (message.event) {
                                     case 'click':
                                         registry.events.invokeDataEvent(registry.notification);
+                                        this.query(id).catch(() => registry.events.invokeCancelEvent(error_4.error(error_4.Errors.featureTerminated)));
                                         break;
                                 }
                         }
@@ -645,7 +637,7 @@ System.register("providers/notifications", ["handlers/watch", "handlers/error", 
                 create(title, listeners, options) {
                     if (!this.active || !this.registration)
                         return;
-                    const events = data_3.AppNextDataEvents.from(listeners), id = new Date().getTime().toString(36);
+                    const events = data_3.AppNextDataEvents.from(listeners), id = 'app-next-' + new Date().getTime().toString(36);
                     events.invokePendingEvent();
                     this.registration.showNotification(title, Object.assign(options, { tag: id }));
                     this.query(id).then(notification => {
@@ -660,6 +652,7 @@ System.register("providers/notifications", ["handlers/watch", "handlers/error", 
                             const id = setInterval(() => {
                                 if (this.registration) {
                                     clearInterval(id);
+                                    this.active = true;
                                     this.permission.handle(permission);
                                     resolve();
                                 }
@@ -669,22 +662,22 @@ System.register("providers/notifications", ["handlers/watch", "handlers/error", 
                 }
                 start() {
                     if (this.active)
-                        return;
+                        return Promise.reject();
                     const handleError = (error) => {
                         this.active = false;
                         this.invokeErrorEvent(error);
+                        return Promise.reject();
                     };
-                    this.active = true;
                     try {
-                        this.request().then(() => { }).catch(error => handleError(error));
+                        return this.request().catch(error => handleError(error));
                     }
                     catch (error) {
-                        handleError(error);
+                        return handleError(error);
                     }
                 }
                 stop() {
                     if (!this.active)
-                        return;
+                        return false;
                     this.active = false;
                     try {
                         const keys = Object.keys(this.registry), count = keys.length;
@@ -702,9 +695,11 @@ System.register("providers/notifications", ["handlers/watch", "handlers/error", 
                             delete this.registry[keys[i]];
                         }
                         this.invokeCancelEvent(error_4.error(error_4.Errors.featureTerminated));
+                        return true;
                     }
                     catch (error) {
                         this.invokeErrorEvent(error);
+                        return false;
                     }
                 }
             };

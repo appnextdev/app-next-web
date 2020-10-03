@@ -14,17 +14,34 @@
 
                 manager.onCancel = error => 
                 {
-                    console.warn(error)
-                    notify('manager-stop', true)
-                },
+                    if (error.name == 'feature terminated')
+                    {
+                        notify('manager-stop', true)
+                    }
+                    else
+                    {
+                        notify('manager-ready', false)
+                        notify('notification-create', false)
+                        notify('notification-wait', false)
+                        notify('notification-show', false)
+                        notify('notification-touch', false)
+                        notify('notification-cancel', false)
+                        notify('manager-stop', false)
+
+                        output('notification-output', error)
+                    }
+                }
+
                 manager.onError = error => 
                 {
-                    console.warn(error)
+                    notify('manager-ready', false)
                     notify('notification-create', false)
                     notify('notification-wait', false)
                     notify('notification-show', false)
+                    notify('notification-touch', false)
                     notify('notification-cancel', false)
-
+                    notify('manager-stop', false)
+                    
                     output('notification-output', error)
                 }
 
@@ -44,6 +61,7 @@
                         {
                             notify('notification-cancel', error.name == 'feature terminated')
                         },
+                        onData: () => notify('notification-touch', true),
                         onError: () =>
                         {
                             notify('notification-cancel', false)
@@ -63,7 +81,13 @@
 
                 manager.start()
 
-                setTimeout(() => manager.stop(), 4000)
+                setTimeout(() => 
+                {
+                    if (!manager.stop()) 
+                    {
+                        manager.invokeErrorEvent(new Error('Failed to start notifications manager'))
+                    }
+                }, 4000)
             })
         </script>
     </head>
@@ -73,13 +97,14 @@
             <li><b>Note:</b> this test <b>must</b> be running from a trusted origin (like <i>localhost</i> or <i>https</i>)</li>
             <li>This test requires user action to complete</li> 
             <li>Grant notification permission if asked</li>
-            <li>Close notification to complete this test suit (or wait for manager to terminate notification)</li>
+            <li>Tap the notification to complete this test suit</li>
         </ul>
         <br/>
         <label id="manager-ready" class="test">Notifications manager started</label>
         <label id="notification-create" class="test">Notification sucessfully created</label>
         <label id="notification-wait" class="test">Wait until notification is displayed to the user</label>
         <label id="notification-show" class="test">Notification properly displayed to the user</label>
+        <label id="notification-touch" class="test">User interact with notification</label>
         <label id="notification-cancel" class="test">Notification properly closed</label>
         <label id="manager-stop" class="test">Notifications manager stopped</label>
         <pre id="notification-output" class="output"></pre>
