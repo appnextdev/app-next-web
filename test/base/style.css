@@ -36,6 +36,16 @@ ul.info
     margin: 1em 0px;
 }
 
+ul.info > li > b
+{
+    color: #333;
+}
+
+ul.info > li > i
+{
+    color: #216fe4;
+}
+
 label.test 
 {
     display: inline-block;

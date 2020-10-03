@@ -133,14 +133,21 @@ System.register("providers/permission", ["handlers/data", "handlers/error"], fun
                 handle(permission) {
                     try {
                         switch (permission) {
-                            case 'granted': return this.invokeReadyEvent();
-                            case 'prompt': return this.invokePendingEvent();
+                            case 'granted':
+                                this.invokeReadyEvent();
+                                return true;
+                            case 'prompt':
+                                this.invokePendingEvent();
+                                return false;
                             case 'denied':
-                            default: return this.invokeCancelEvent(error_1.error(error_1.Errors.permissionDenied));
+                            default:
+                                this.invokeCancelEvent(error_1.error(error_1.Errors.permissionDenied));
+                                return false;
                         }
                     }
                     catch (error) {
                         this.invokeErrorEvent(error);
+                        return false;
                     }
                 }
                 register() {
@@ -451,32 +458,34 @@ System.register("providers/notifications", ["handlers/watch", "handlers/error", 
                 }
                 request() {
                     return new Promise((resolve, reject) => {
-                        Notification.requestPermission().then(permission => {
+                        const handlePermission = (permission) => {
+                            if (handling)
+                                return;
+                            handling = true;
                             const id = setInterval(() => {
                                 if (this.registration) {
                                     clearInterval(id);
                                     this.active = true;
-                                    this.permission.handle(permission);
+                                    if (!this.permission.handle(permission)) {
+                                        this.active = false;
+                                    }
                                     resolve();
                                 }
                             }, 100);
-                        }).catch(reject);
+                        };
+                        var handling = false;
+                        const handler = Notification.requestPermission(handlePermission);
+                        if (handler instanceof Promise) {
+                            handler.then(handlePermission).catch(error => {
+                                this.active = false;
+                                this.invokeErrorEvent(error);
+                                reject(error);
+                            });
+                        }
                     });
                 }
                 start() {
-                    if (this.active)
-                        return Promise.reject();
-                    const handleError = (error) => {
-                        this.active = false;
-                        this.invokeErrorEvent(error);
-                        return Promise.reject();
-                    };
-                    try {
-                        return this.request().catch(error => handleError(error));
-                    }
-                    catch (error) {
-                        return handleError(error);
-                    }
+                    return this.active ? Promise.reject() : this.request();
                 }
                 stop() {
                     if (!this.active)
