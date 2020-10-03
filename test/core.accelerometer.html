@@ -24,6 +24,8 @@
                         notify('accelerometer-position', false)
                         notify('accelerometer-cancel', false)
                         notify('accelerometer-error', false)
+
+                        output('coordinate-output', error)
                     }
                 }
 
@@ -59,7 +61,7 @@
                     throw error()
                 }
 
-                acc.request().then(() => acc.start())
+                acc.start() 
             })
         </script>
     </head>

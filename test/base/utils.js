@@ -33,9 +33,9 @@ function output(id, data, append)
 {
     const error = data instanceof Error
 
-    error ? console.error(error) : console.info(data)
+    error ? console.error(data) : console.info(data)
 
-    const json = JSON.parse(JSON.stringify(clone(error ? { name: error.name, message: error.message } : data)))
+    const json = JSON.parse(JSON.stringify(clone(error ? { name: data.name, message: data.message } : data)))
 
     update(id, 'show'); element(id).then(element => 
     {

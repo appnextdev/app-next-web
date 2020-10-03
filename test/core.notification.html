@@ -12,9 +12,14 @@
             {
                 const manager = ctx.providers.notifications()
 
-                manager.onCancel = () => notify('manager-stop', true)
+                manager.onCancel = error => 
+                {
+                    console.warn(error)
+                    notify('manager-stop', true)
+                },
                 manager.onError = error => 
                 {
+                    console.warn(error)
                     notify('notification-create', false)
                     notify('notification-wait', false)
                     notify('notification-show', false)
@@ -29,35 +34,44 @@
                     output('notification-output', notification)
                 }
 
-                manager.onReady = () => notify('manager-ready', true)
+                manager.onReady = () => 
+                {
+                    notify('manager-ready', true)
+
+                    manager.create('Test Notification',
+                    {
+                        onCancel: error => 
+                        {
+                            notify('notification-cancel', error.name == 'feature terminated')
+                        },
+                        onError: () =>
+                        {
+                            notify('notification-cancel', false)
+                            notify('notification-show', false)
+                        },
+                        onPending: () => notify('notification-wait', true),
+                        onReady: () => 
+                        {
+                            notify('notification-show', true)
+                        }
+                    },
+                    {
+                        body: 'I 😍 Notifications',
+                        icon: '../assets/icon.png'
+                    })
+                }
 
                 manager.start()
 
-                manager.create('Test Notification',
-                {
-                    onCancel: () => notify('notification-cancel', true),
-                    onError: () =>
-                    {
-                        notify('notification-cancel', false)
-                        notify('notification-show', false)
-                    },
-                    onPending: () => notify('notification-wait', true),
-                    onReady: () => notify('notification-show', true)
-                },
-                {
-                    body: 'I 😍 Notifications',
-                    image: '../assets/logo.png'
-                })
-
-                setTimeout(() => manager.stop(), 7000)
+                setTimeout(() => manager.stop(), 4000)
             })
         </script>
     </head>
     <body>
         <h1>AppNext Notification Provider Test Suit</h1>
         <ul class="info">
+            <li><b>Note:</b> this test <b>must</b> be running from a trusted origin (like <i>localhost</i> or <i>https</i>)</li>
             <li>This test requires user action to complete</li> 
-            <li>Note: this test cannot be completed if not running from a trusted origin (https)</li>
             <li>Grant notification permission if asked</li>
             <li>Close notification to complete this test suit (or wait for manager to terminate notification)</li>
         </ul>
