@@ -26,4 +26,9 @@ gulp.task('copy-core-test', () =>
     })).pipe(gulp.dest('test'))
 })
 
-gulp.task('build', gulp.series('copy-core-dist', 'copy-core-test'))
+gulp.task('copy-core-worker', () =>
+{
+    return gulp.src(folder.core + 'app-next-service-worker.js').pipe(gulp.dest('.'))
+})
+
+gulp.task('build', gulp.series('copy-core-dist', 'copy-core-test', 'copy-core-worker'))
