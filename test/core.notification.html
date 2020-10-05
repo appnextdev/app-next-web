@@ -53,15 +53,23 @@
 
                 manager.onReady = () => 
                 {
+                    var touch = false
+
                     notify('manager-ready', true)
 
                     manager.create('Test Notification',
                     {
                         onCancel: error => 
                         {
+                            if (!touch) notify('notification-touch', false)
+
                             notify('notification-cancel', error.name == 'feature terminated')
                         },
-                        onData: () => notify('notification-touch', true),
+                        onData: () => 
+                        {
+                            touch = true
+                            notify('notification-touch', true)
+                        },
                         onError: () =>
                         {
                             notify('notification-cancel', false)
@@ -97,7 +105,7 @@
             <li><b>Note:</b> this test <b>must</b> be running from a trusted origin (like <i>localhost</i> or <i>https</i>)</li>
             <li>This test requires user action to complete</li> 
             <li>Grant notification permission if asked</li>
-            <li>Tap the notification to complete this test suit</li>
+            <li>Tap notification to complete this test suit</li>
         </ul>
         <br/>
         <label id="manager-ready" class="test">Notifications manager started</label>

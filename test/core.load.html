@@ -8,135 +8,75 @@
         <script src="../dist/app-next-core.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/pretty-print-json@0.2/dist/pretty-print-json.min.js"></script>
         <script>
-            
-            AppNext(ctx => 
-            {
-                class TestElement extends ctx.CustomElement
-                {
-                    render()
-                    {
-                        const config = this.utils.config(),
-                              element = this.utils.element('div')
-
-                        element.innerText = 'I am a custom element. YAY 😄'
-
-                        this.events.onReady = config.onready
-
-                        this.events.invokeReadyEvent()
-                    }
-                }
-                    
-                notify('lib-ready', true)
-
-                ctx.config
-                ({
-                    'custom-element-test':
-                    {
-                        oncancel: () => notify('custom-element-added', false),
-                        onerror: () => notify('custom-element-added', false),
-                        onready: () => notify('custom-element-added', true)
-                    }
-                })
-
-                ctx.register.element('test-element', TestElement)
-
-                const service = ctx.register.service('test-service',
-                `
-                    onmessage = event =>
-                    {
-                        switch (event.data.action)
-                        {
-                            case 'start':
-
-                                postMessage({ info: 'starting background service test' })
-
-                                setInterval(() =>
-                                {
-                                    postMessage({ value: new Date().getTime().toString(36) })
-
-                                }, 700)
-
-                                break
-
-                            case 'stop':
-
-                                postMessage({ info: 'background service stopped' })
-
-                                break
-                        }
-                    }
-                `)
-
-                service.onCancel = error =>
+            AppNext
+            ({
+                onCancel: error =>
                 {
                     if (error.name == 'feature terminated')
                     {
-                        notify('service-cancel', true)
+                        notify('lib-cancel', true)
                     }
                     else
                     {
-                        notify('service-wait', false)
-                        notify('service-ready', false)
-                        notify('service-data', false)
-                        notify('service-cancel', false)
-                        notify('service-error', false)
+                        notify('lib-cancel', false)
+                        output('lib-output', error)
                     }
-                }
-
-                service.onData = event =>
-                {
-                    notify('service-data', true)
-
-                    output('service-output', event.data, true)
-                }
+                },
                 
-                service.onError = error =>
+                onError: error =>
                 {
                     if (error.name == 'test')
                     {
-                        notify('service-error', true)
+                        notify('lib-error', true)
                     }
                     else
                     {
-                        notify('service-error', false)
-
-                        output('service-output', error)
+                        notify('lib-error', false)
+                        output('lib-output', error)
                     }
-                }
+                },
 
-                service.onPending = () => notify('service-wait', true)
-
-                service.onReady = () => 
+                onReady: () => 
                 {
-                    notify('service-ready', true)
-
-                    setTimeout(() => service.stop({ action: 'stop' }), 3000)
+                    notify('lib-ready', true)
 
                     throw error()
-                }
+                },
 
-                service.start(); service.post({ action: 'start' })
+                onData: ctx => 
+                {
+                    const value = new Date().getTime()
+
+                    ctx.subscribe(event =>
+                    {
+                        const message = event.data
+
+                        notify('lib-message', message.event.data == value)
+
+                        output('lib-output', { value })
+
+                        ctx.stop()
+                    })
+
+                    if (!ctx.publish(value))
+                    {
+                        notify('lib-cancel', false)
+                    }
+                }
             })
+            
         </script>
     </head>
     <body>
         <h1>AppNext Loading Test Suit</h1>
         <ul class="info">
+            <li><b>Note:</b> this test <b>must</b> be running from a trusted origin (like <i>localhost</i> or <i>https</i>)</li>
             <li>Bootsrap test - if this fails, core functionality is not working properly and current version may be compromised</li> 
         </ul>
-        <h3>Simple Library Load</h3>
         <label id="lib-ready" class="test">AppNext core library loaded sucessfully and ready for use</label>
-        <br><br>
-        <h3>Custom Element Load</h3>
-        <test-element config="custom-element-test"></test-element>
-        <label id="custom-element-added" class="test">Custom element sucessfully registered and rendered</label>
-        <br><br>
-        <h3>Background Service Load</h3>
-        <label id="service-wait" class="test">Waiting for background service to properly load</label>
-        <label id="service-ready" class="test">Background service is ready for action</label>
-        <label id="service-data" class="test">Background service recieves data properly</label>
-        <label id="service-cancel" class="test">Background service is stopped properly</label>
-        <label id="service-error" class="test">Error handled by background service</label>
-        <pre id="service-output" class="output"></pre>
+        <label id="lib-message" class="test">AppNext core library properly handles global messaging (pub / sub)</label>
+        <label id="lib-error" class="test">AppNext core library properly handling errors</label>
+        <label id="lib-cancel" class="test">AppNext core library stopped</label>
+        <pre id="lib-output" class="output"></pre>
     </body>
 </html>

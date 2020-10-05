@@ -11,22 +11,22 @@
         <script>
             AppNext(ctx =>
             {
-                sensorTestSuit.overall('accelerometer', ctx.sensors.accelerometer())
+                sensorTestSuit.overall('magnetometer', ctx.sensors.magnetometer())
             })
         </script>
     </head>
     <body>
-        <h1>AppNext Accelerometer Sensor Test Suit</h1>
+        <h1>AppNext Magnetometer Sensor Test Suit</h1>
         <ul class="info">
             <li><b>Note:</b> this test <b>must</b> be running from a trusted origin (like <i>localhost</i> or <i>https</i>)</li>
             <li>This test requires user action to complete</li> 
-            <li>If Asked - approve accelerometer sensor to proceed</li>
+            <li>If Asked - approve magnetometer sensor to proceed</li>
         </ul>
-        <label id="accelerometer-wait" class="test">Wait for accelerometer permission</label>
-        <label id="accelerometer-ready" class="test">Accelerometer is ready for sending position data</label>
-        <label id="accelerometer-position" class="test">Accelerometer is sending position data</label>
-        <label id="accelerometer-cancel" class="test">Accelerometer is stopped properly</label>
-        <label id="accelerometer-error" class="test">Error handled by accelerometer provider</label>
-        <pre id="accelerometer-output" class="output"></pre>
+        <label id="magnetometer-wait" class="test">Wait for magnetometer permission</label>
+        <label id="magnetometer-ready" class="test">Magnetometer is ready for sending position data</label>
+        <label id="magnetometer-position" class="test">Magnetometer is sending position data</label>
+        <label id="magnetometer-cancel" class="test">Magnetometer is stopped properly</label>
+        <label id="magnetometer-error" class="test">Error handled by magnetometer provider</label>
+        <pre id="magnetometer-output" class="output"></pre>
     </body>
 </html>

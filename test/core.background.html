@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>AppNext Test Page</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="base/style.css" />
+        <script src="base/utils.js"></script>
+        <script src="../dist/app-next-core.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/pretty-print-json@0.2/dist/pretty-print-json.min.js"></script>
+        <script>
+            AppNext(ctx => 
+            {
+                const service = ctx.register.service('test-service',
+                `
+                    onmessage = event =>
+                    {
+                        switch (event.data.action)
+                        {
+                            case 'start':
+
+                                postMessage({ info: 'starting background service test' })
+
+                                setInterval(() =>
+                                {
+                                    postMessage({ value: new Date().getTime().toString(36) })
+
+                                }, 700)
+
+                                break
+
+                            case 'stop':
+
+                                postMessage({ info: 'background service stopped' })
+
+                                break
+                        }
+                    }
+                `)
+
+                service.onCancel = error =>
+                {
+                    if (error.name == 'feature terminated')
+                    {
+                        notify('service-cancel', true)
+                    }
+                    else
+                    {
+                        notify('service-wait', false)
+                        notify('service-ready', false)
+                        notify('service-data', false)
+                        notify('service-cancel', false)
+                        notify('service-error', false)
+                    }
+                }
+
+                service.onData = event =>
+                {
+                    notify('service-data', true)
+
+                    output('service-output', event.data, true)
+                }
+                
+                service.onError = error =>
+                {
+                    if (error.name == 'test')
+                    {
+                        notify('service-error', true)
+                    }
+                    else
+                    {
+                        notify('service-error', false)
+
+                        output('service-output', error)
+                    }
+                }
+
+                service.onPending = () => notify('service-wait', true)
+
+                service.onReady = () => 
+                {
+                    notify('service-ready', true)
+
+                    setTimeout(() => service.stop({ action: 'stop' }), 3000)
+
+                    throw error()
+                }
+
+                service.start(); service.post({ action: 'start' })
+            })
+        </script>
+    </head>
+    <body>
+        <h1>AppNext Background Service Test Suit</h1>
+        <ul class="info">
+            <li><b>Note:</b> this test <b>must</b> be running from a trusted origin (like <i>localhost</i> or <i>https</i>)</li>
+        </ul>
+        <label id="service-wait" class="test">Waiting for background service to properly load</label>
+        <label id="service-ready" class="test">Background service is ready for action</label>
+        <label id="service-data" class="test">Background service recieves data properly</label>
+        <label id="service-cancel" class="test">Background service is stopped properly</label>
+        <label id="service-error" class="test">Error handled by background service</label>
+        <pre id="service-output" class="output"></pre>
+    </body>
+</html>

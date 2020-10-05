@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>AppNext Test Page</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="base/style.css" />
+        <script src="base/utils.js"></script>
+        <script src="../dist/app-next-core.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/pretty-print-json@0.2/dist/pretty-print-json.min.js"></script>
+        <script>
+            AppNext(ctx => 
+            {
+                class TestElement extends ctx.CustomElement
+                {
+                    render()
+                    {
+                        const config = this.utils.config(),
+                              element = this.utils.element('div')
+
+                        element.innerText = 'I am a custom element. YAY 😄'
+
+                        this.events.onReady = config.onready
+
+                        this.events.invokeReadyEvent()
+                    }
+                }
+
+                ctx.register.element('test-element', TestElement)
+                    
+                ctx.config
+                ({
+                    'custom-element-test':
+                    {
+                        oncancel: () => notify('custom-element-ready', false),
+                        onerror: () => notify('custom-element-ready', false),
+                        onready: () => notify('custom-element-ready', true)
+                    }
+                })
+            })
+        </script>
+    </head>
+    <body>
+        <h1>AppNext Custom Element Test Suit</h1>
+        <ul class="info">
+            <li><b>Note:</b> this test <b>must</b> be running from a trusted origin (like <i>localhost</i> or <i>https</i>)</li>
+        </ul>
+        <test-element config="custom-element-test"></test-element>
+        <label id="custom-element-ready" class="test">Custom element sucessfully registered and rendered</label>
+    </body>
+</html>

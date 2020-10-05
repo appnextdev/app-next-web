@@ -11,22 +11,22 @@
         <script>
             AppNext(ctx =>
             {
-                sensorTestSuit.overall('accelerometer', ctx.sensors.accelerometer())
+                sensorTestSuit.overall('light', ctx.sensors.light())
             })
         </script>
     </head>
     <body>
-        <h1>AppNext Accelerometer Sensor Test Suit</h1>
+        <h1>AppNext Light Sensor Test Suit</h1>
         <ul class="info">
             <li><b>Note:</b> this test <b>must</b> be running from a trusted origin (like <i>localhost</i> or <i>https</i>)</li>
             <li>This test requires user action to complete</li> 
-            <li>If Asked - approve accelerometer sensor to proceed</li>
+            <li>If Asked - approve light sensor to proceed</li>
         </ul>
-        <label id="accelerometer-wait" class="test">Wait for accelerometer permission</label>
-        <label id="accelerometer-ready" class="test">Accelerometer is ready for sending position data</label>
-        <label id="accelerometer-position" class="test">Accelerometer is sending position data</label>
-        <label id="accelerometer-cancel" class="test">Accelerometer is stopped properly</label>
-        <label id="accelerometer-error" class="test">Error handled by accelerometer provider</label>
-        <pre id="accelerometer-output" class="output"></pre>
+        <label id="light-wait" class="test">Wait for light permission</label>
+        <label id="light-ready" class="test">Light is ready for sending position data</label>
+        <label id="light-position" class="test">Light is sending position data</label>
+        <label id="light-cancel" class="test">Light is stopped properly</label>
+        <label id="light-error" class="test">Error handled by light provider</label>
+        <pre id="light-output" class="output"></pre>
     </body>
 </html>

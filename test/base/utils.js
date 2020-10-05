@@ -31,18 +31,38 @@ function notify(id, ok)
 
 function output(id, data, append)
 {
-    const error = data instanceof Error
-
-    error ? console.error(data) : console.info(data)
-
-    const json = JSON.parse(JSON.stringify(clone(error ? { name: data.name, message: data.message } : data)))
-
-    update(id, 'show'); element(id).then(element => 
+    function format(object)
     {
-        const output = prettyPrintJson.toHtml(json) + '<br/>'
+        return JSON.parse(JSON.stringify(clone(isError ? { name: object.name, message: object.message } : object)))
+    }
 
-        element.innerHTML = append ? element.innerHTML + output : output
-    })
+    const isError = data instanceof Error
+
+    isError ? console.error(data) : console.info(data)
+
+    if (isError) append = true
+
+    try
+    {
+        var json = format(data)
+    }
+    catch(error)
+    {
+        json = format(error)
+    }
+
+    if (json) 
+    {
+        update(id, 'show')
+        
+        element(id).then(element => 
+        {
+            const output = prettyPrintJson.toHtml(json) + '<br/>'
+
+            element.innerHTML = append ? element.innerHTML + output : output
+        })
+    }
+    
 }
 
 function update(id, classes)

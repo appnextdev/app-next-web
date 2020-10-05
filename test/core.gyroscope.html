@@ -11,22 +11,22 @@
         <script>
             AppNext(ctx =>
             {
-                sensorTestSuit.overall('accelerometer', ctx.sensors.accelerometer())
+                sensorTestSuit.overall('gyroscope', ctx.sensors.gyroscope())
             })
         </script>
     </head>
     <body>
-        <h1>AppNext Accelerometer Sensor Test Suit</h1>
+        <h1>AppNext Gyroscope Sensor Test Suit</h1>
         <ul class="info">
             <li><b>Note:</b> this test <b>must</b> be running from a trusted origin (like <i>localhost</i> or <i>https</i>)</li>
             <li>This test requires user action to complete</li> 
-            <li>If Asked - approve accelerometer sensor to proceed</li>
+            <li>If Asked - approve gyroscope sensor to proceed</li>
         </ul>
-        <label id="accelerometer-wait" class="test">Wait for accelerometer permission</label>
-        <label id="accelerometer-ready" class="test">Accelerometer is ready for sending position data</label>
-        <label id="accelerometer-position" class="test">Accelerometer is sending position data</label>
-        <label id="accelerometer-cancel" class="test">Accelerometer is stopped properly</label>
-        <label id="accelerometer-error" class="test">Error handled by accelerometer provider</label>
-        <pre id="accelerometer-output" class="output"></pre>
+        <label id="gyroscope-wait" class="test">Wait for gyroscope permission</label>
+        <label id="gyroscope-ready" class="test">Gyroscope is ready for sending position data</label>
+        <label id="gyroscope-position" class="test">Gyroscope is sending position data</label>
+        <label id="gyroscope-cancel" class="test">Gyroscope is stopped properly</label>
+        <label id="gyroscope-error" class="test">Error handled by gyroscope provider</label>
+        <pre id="gyroscope-output" class="output"></pre>
     </body>
 </html>
