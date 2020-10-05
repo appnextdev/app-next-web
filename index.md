@@ -39,6 +39,9 @@ How can you tell if this project supports your app requirements? By default, *Ap
     * [Notifications](/test/core.notification.html) - manage application notifications
 * Sensors
     * [Accelerometer](/test/core.accelerometer.html) - get x,y,z coordinates of device acceleration forces
+    * [Gyroscope](/test/core.gyroscope.html) - get x,y,z coordinates of angular velocity
+    * [Light](/test/core.light.html) - detect the illuminance volume around your device
+    * [Magnetometer](/test/core.magnetometer.html) - retrive the magnetic field detected by device
 * Utils
     * [Objects Reflector](/test/core.reflector.html) - attach objects and reflect changes on them when their values changed
     * [Tasks Scheduler](/test/core.scheduler.html) - manage scheduled tasks (can be combined to fire notifications as well)
