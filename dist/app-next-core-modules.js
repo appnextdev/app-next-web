@@ -95,7 +95,8 @@ System.register("handlers/error", [], function (exports_2, context_2) {
                 Errors[Errors["invalidConfig"] = 4] = "invalidConfig";
                 Errors[Errors["invalidFactoryFunction"] = 5] = "invalidFactoryFunction";
                 Errors[Errors["notificationError"] = 6] = "notificationError";
-                Errors[Errors["permissionDenied"] = 7] = "permissionDenied";
+                Errors[Errors["notificationNotFound"] = 7] = "notificationNotFound";
+                Errors[Errors["permissionDenied"] = 8] = "permissionDenied";
             })(Errors || (Errors = {}));
             exports_2("Errors", Errors);
             errors = {
@@ -106,6 +107,7 @@ System.register("handlers/error", [], function (exports_2, context_2) {
                 invalidConfig: { name: 'invalid config', message: 'Config object is missing required members' },
                 invalidFactoryFunction: { name: 'invalid factory', message: 'Factory function must provide a valid handler instance' },
                 notificationError: { name: 'notification error', message: 'An error raised while handling notification' },
+                notificationNotFound: { name: 'notification not found', message: 'Notification not found in service worker registration' },
                 permissionDenied: { name: 'permission denied', message: 'Requested permission denied by user' }
             };
         }
@@ -575,16 +577,15 @@ System.register("providers/notifications", ["handlers/watch", "handlers/error", 
                         return;
                     const events = data_4.AppNextDataEvents.from(listeners), id = 'app-next-' + new Date().getTime().toString(36);
                     events.invokePendingEvent();
-                    const error = this.worker.invoke(registration => {
-                        registration.showNotification(title, Object.assign(options, { tag: id }));
+                    this.worker.invoke(registration => {
+                        registration.showNotification(title, Object.assign(options, { tag: id }))
+                            .then(() => this.query(id))
+                            .then(notification => {
+                            this.registry[id] = { events, notification };
+                            this.invokeDataEvent(notification);
+                            events.invokeReadyEvent();
+                        }).catch((error) => events.invokeCancelEvent(error));
                     });
-                    if (error)
-                        return this.invokeCancelEvent(error);
-                    this.query(id).then(notification => {
-                        this.registry[id] = { events, notification };
-                        this.invokeDataEvent(notification);
-                        events.invokeReadyEvent();
-                    }).catch((error) => events.invokeCancelEvent(error));
                 }
                 request() {
                     return new Promise((resolve, reject) => {
