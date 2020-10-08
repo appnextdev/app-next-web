@@ -1048,36 +1048,32 @@ System.register("core", ["sensors/accelerometer", "providers/geolocation", "sens
                     });
                 }
                 start() {
-                    try {
-                        const handle = {
-                            notifications: null
+                    const handle = {
+                        notifications: null
+                    };
+                    this.service.onCancel = error => this.invokeCancelEvent(error);
+                    this.service.onError = error => this.invokeErrorEvent(error);
+                    this.worker.onCancel = error => this.invokeCancelEvent(error);
+                    this.worker.onError = error => this.invokeErrorEvent(error);
+                    this.service.onReady = () => {
+                        this.invokeReadyEvent();
+                        this.invokeDataEvent(this);
+                    };
+                    this.worker.onReady = () => {
+                        this.providers.geolocation = (options) => new geolocation_1.AppNextGeoLocationProvider(options);
+                        this.providers.notifications = () => {
+                            if (!handle.notifications) {
+                                handle.notifications = new notifications_1.AppNextNotificationsProvider(this.worker);
+                            }
+                            return handle.notifications;
                         };
-                        this.worker.onError = error => this.invokeErrorEvent(error);
-                        this.worker.onReady = () => {
-                            this.providers.geolocation = (options) => new geolocation_1.AppNextGeoLocationProvider(options);
-                            this.providers.notifications = () => {
-                                if (!handle.notifications) {
-                                    handle.notifications = new notifications_1.AppNextNotificationsProvider(this.worker);
-                                }
-                                return handle.notifications;
-                            };
-                            this.sensors.accelerometer = (options) => new accelerometer_1.AppNextAccelerometerSensor(options);
-                            this.sensors.gyroscope = (options) => new gyroscope_1.AppNextGyroscopeSensor(options);
-                            this.sensors.light = (options) => new light_1.AppNextLightSensor(options);
-                            this.sensors.magnetometer = (options) => new magnetometer_1.AppNextMagnetometerSensor(options);
-                        };
-                        return this.worker.start().then(() => {
-                            this.service.onReady = () => {
-                                this.invokeReadyEvent();
-                                this.invokeDataEvent(this);
-                            };
-                            this.service.start();
-                        }).catch(error => this.invokeCancelEvent(error));
-                    }
-                    catch (error) {
-                        this.invokeCancelEvent(error);
-                        return Promise.reject();
-                    }
+                        this.sensors.accelerometer = (options) => new accelerometer_1.AppNextAccelerometerSensor(options);
+                        this.sensors.gyroscope = (options) => new gyroscope_1.AppNextGyroscopeSensor(options);
+                        this.sensors.light = (options) => new light_1.AppNextLightSensor(options);
+                        this.sensors.magnetometer = (options) => new magnetometer_1.AppNextMagnetometerSensor(options);
+                    };
+                    return this.worker.start().then(() => { this.service.start(); })
+                        .catch(error => this.invokeCancelEvent(error));
                 }
                 stop() {
                     const tasks = [
