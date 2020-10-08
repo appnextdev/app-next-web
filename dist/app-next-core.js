@@ -613,27 +613,68 @@ System.register("sensors/magnetometer", ["sensors/base/sensor"], function (expor
         }
     };
 });
-System.register("handlers/worker", ["handlers/data", "handlers/error"], function (exports_11, context_11) {
+System.register("handlers/pubsub", ["handlers/data"], function (exports_11, context_11) {
     "use strict";
-    var data_3, error_4, AppNextServiceWorker;
+    var data_3, AppNextPubSubManager;
     var __moduleName = context_11 && context_11.id;
     return {
         setters: [
             function (data_3_1) {
                 data_3 = data_3_1;
-            },
-            function (error_4_1) {
-                error_4 = error_4_1;
             }
         ],
         execute: function () {
-            AppNextServiceWorker = class AppNextServiceWorker extends data_3.AppNextDataEvents {
+            AppNextPubSubManager = class AppNextPubSubManager extends data_3.AppNextDataEvents {
+                constructor(post) {
+                    super();
+                    this.listeners = [];
+                    this.post = post;
+                }
+                invoke(event) {
+                    this.listeners.forEach(listener => {
+                        try {
+                            listener.call({}, event);
+                        }
+                        catch (error) {
+                            this.invokeErrorEvent(error);
+                        }
+                    });
+                }
+                publish(message) {
+                    return this.post ? this.post(message) : false;
+                }
+                subscribe(listener) {
+                    this.listeners.push(listener);
+                }
+                reset() {
+                    this.listeners.splice(0, this.listeners.length);
+                }
+            };
+            exports_11("AppNextPubSubManager", AppNextPubSubManager);
+        }
+    };
+});
+System.register("handlers/worker", ["handlers/data", "handlers/error", "handlers/pubsub"], function (exports_12, context_12) {
+    "use strict";
+    var data_4, error_4, pubsub_1, AppNextServiceWorker;
+    var __moduleName = context_12 && context_12.id;
+    return {
+        setters: [
+            function (data_4_1) {
+                data_4 = data_4_1;
+            },
+            function (error_4_1) {
+                error_4 = error_4_1;
+            },
+            function (pubsub_1_1) {
+                pubsub_1 = pubsub_1_1;
+            }
+        ],
+        execute: function () {
+            AppNextServiceWorker = class AppNextServiceWorker extends data_4.AppNextDataEvents {
                 constructor() {
                     super();
-                    this.listeners =
-                        {
-                            message: []
-                        };
+                    this.pubsub = new pubsub_1.AppNextPubSubManager(data => this.message(data));
                 }
                 invoke(handler) {
                     try {
@@ -647,34 +688,26 @@ System.register("handlers/worker", ["handlers/data", "handlers/error"], function
                 }
                 message(data) {
                     try {
-                        this.channel.postMessage(data);
-                        return true;
+                        if (navigator.serviceWorker.controller) {
+                            navigator.serviceWorker.controller.postMessage(data);
+                            return true;
+                        }
+                        return false;
                     }
                     catch (error) {
                         this.invokeErrorEvent(error);
                         return false;
                     }
                 }
-                onMessage(listener) {
-                    this.listeners.message.push(listener);
+                subscribe(listener) {
+                    this.pubsub.subscribe(listener);
                 }
                 start() {
                     if (this.registration)
                         return Promise.reject();
-                    const invoke = (listeners, handler) => {
-                        listeners.forEach(listener => {
-                            try {
-                                listener.call({}, handler);
-                            }
-                            catch (error) {
-                                this.invokeErrorEvent(error);
-                            }
-                        });
-                    };
                     this.invokePendingEvent();
                     try {
-                        this.channel = new BroadcastChannel('app-next-channel');
-                        this.channel.addEventListener('message', event => invoke(this.listeners.message, event));
+                        navigator.serviceWorker.onmessage = event => this.pubsub.invoke(event);
                         navigator.serviceWorker.register('/app-next-service-worker.js');
                         return navigator.serviceWorker.ready.then(registration => {
                             this.invokeReadyEvent();
@@ -695,27 +728,21 @@ System.register("handlers/worker", ["handlers/data", "handlers/error"], function
                         return handleError();
                     return this.registration.unregister().then(success => {
                         if (success) {
-                            try {
-                                this.channel.close();
-                                this.invokeCancelEvent(error_4.error(error_4.Errors.featureTerminated));
-                                return Promise.resolve();
-                            }
-                            catch (error) {
-                                return handleError(error);
-                            }
+                            this.invokeCancelEvent(error_4.error(error_4.Errors.featureTerminated));
+                            return Promise.resolve();
                         }
                         return handleError();
                     });
                 }
             };
-            exports_11("AppNextServiceWorker", AppNextServiceWorker);
+            exports_12("AppNextServiceWorker", AppNextServiceWorker);
         }
     };
 });
-System.register("providers/notifications", ["handlers/watch", "handlers/error", "handlers/data"], function (exports_12, context_12) {
+System.register("providers/notifications", ["handlers/watch", "handlers/error", "handlers/data"], function (exports_13, context_13) {
     "use strict";
-    var watch_3, error_5, data_4, AppNextNotificationsProvider;
-    var __moduleName = context_12 && context_12.id;
+    var watch_3, error_5, data_5, AppNextNotificationsProvider;
+    var __moduleName = context_13 && context_13.id;
     return {
         setters: [
             function (watch_3_1) {
@@ -724,8 +751,8 @@ System.register("providers/notifications", ["handlers/watch", "handlers/error", 
             function (error_5_1) {
                 error_5 = error_5_1;
             },
-            function (data_4_1) {
-                data_4 = data_4_1;
+            function (data_5_1) {
+                data_5 = data_5_1;
             }
         ],
         execute: function () {
@@ -734,11 +761,14 @@ System.register("providers/notifications", ["handlers/watch", "handlers/error", 
                     super('notifications');
                     this.active = false;
                     this.registry = {};
-                    worker.onMessage(event => {
+                    worker.subscribe(event => {
                         const message = event.data;
                         switch (message.source) {
                             case 'notification':
-                                const event = message.event;
+                                const close = () => {
+                                    delete this.registry[event.id];
+                                    registry.events.invokeCancelEvent(error_5.error(error_5.Errors.featureTerminated));
+                                }, event = message.event;
                                 if (!event)
                                     return;
                                 const registry = this.registry[event.id];
@@ -747,10 +777,10 @@ System.register("providers/notifications", ["handlers/watch", "handlers/error", 
                                 switch (message.on) {
                                     case 'click':
                                         registry.events.invokeDataEvent(event);
-                                        this.query(event.id).catch(() => {
-                                            delete this.registry[event.id];
-                                            registry.events.invokeCancelEvent(error_5.error(error_5.Errors.featureTerminated));
-                                        });
+                                        this.query(event.id).catch(() => close());
+                                        break;
+                                    case 'close':
+                                        close();
                                         break;
                                 }
                         }
@@ -772,7 +802,7 @@ System.register("providers/notifications", ["handlers/watch", "handlers/error", 
                 create(title, listeners, options) {
                     if (!this.active)
                         return;
-                    const events = data_4.AppNextDataEvents.from(listeners), id = 'app-next-' + new Date().getTime().toString(36);
+                    const events = data_5.AppNextDataEvents.from(listeners), id = 'app-next-' + new Date().getTime().toString(36);
                     events.invokePendingEvent();
                     this.worker.invoke(registration => {
                         registration.showNotification(title, Object.assign(options, { tag: id }))
@@ -838,131 +868,21 @@ System.register("providers/notifications", ["handlers/watch", "handlers/error", 
                     }
                 }
             };
-            exports_12("AppNextNotificationsProvider", AppNextNotificationsProvider);
-        }
-    };
-});
-System.register("core", ["sensors/accelerometer", "providers/geolocation", "sensors/gyroscope", "sensors/light", "sensors/magnetometer", "providers/notifications", "handlers/worker", "handlers/data", "handlers/error"], function (exports_13, context_13) {
-    "use strict";
-    var accelerometer_1, geolocation_1, gyroscope_1, light_1, magnetometer_1, notifications_1, worker_1, data_5, error_6, AppNextCore;
-    var __moduleName = context_13 && context_13.id;
-    function config(name) {
-        const object = (AppNextCore.config || {})[name] || {};
-        object.name = name;
-        return object;
-    }
-    exports_13("config", config);
-    return {
-        setters: [
-            function (accelerometer_1_1) {
-                accelerometer_1 = accelerometer_1_1;
-            },
-            function (geolocation_1_1) {
-                geolocation_1 = geolocation_1_1;
-            },
-            function (gyroscope_1_1) {
-                gyroscope_1 = gyroscope_1_1;
-            },
-            function (light_1_1) {
-                light_1 = light_1_1;
-            },
-            function (magnetometer_1_1) {
-                magnetometer_1 = magnetometer_1_1;
-            },
-            function (notifications_1_1) {
-                notifications_1 = notifications_1_1;
-            },
-            function (worker_1_1) {
-                worker_1 = worker_1_1;
-            },
-            function (data_5_1) {
-                data_5 = data_5_1;
-            },
-            function (error_6_1) {
-                error_6 = error_6_1;
-            }
-        ],
-        execute: function () {
-            AppNextCore = class AppNextCore extends data_5.AppNextDataEvents {
-                constructor(events) {
-                    super();
-                    this.onCancel = events.onCancel;
-                    this.onData = events.onData;
-                    this.onError = events.onError;
-                    this.onPending = events.onPending;
-                    this.onReady = events.onReady;
-                    this.providers =
-                        {
-                            geolocation: null,
-                            notifications: null
-                        };
-                    this.sensors =
-                        {
-                            accelerometer: null,
-                            gyroscope: null,
-                            light: null,
-                            magnetometer: null
-                        };
-                    this.worker = new worker_1.AppNextServiceWorker();
-                    this.worker.onError = this.onError;
-                }
-                config(value) { AppNextCore.config = value || {}; }
-                publish(data) {
-                    return this.worker.message(data);
-                }
-                subscribe(listener) {
-                    this.worker.onMessage(listener);
-                }
-                start() {
-                    try {
-                        const handle = {
-                            notifications: null
-                        };
-                        this.worker.onReady = () => {
-                            this.providers.geolocation = (options) => new geolocation_1.AppNextGeoLocationProvider(options);
-                            this.providers.notifications = () => {
-                                if (!handle.notifications) {
-                                    handle.notifications = new notifications_1.AppNextNotificationsProvider(this.worker);
-                                }
-                                return handle.notifications;
-                            };
-                            this.sensors.accelerometer = (options) => new accelerometer_1.AppNextAccelerometerSensor(options);
-                            this.sensors.gyroscope = (options) => new gyroscope_1.AppNextGyroscopeSensor(options);
-                            this.sensors.light = (options) => new light_1.AppNextLightSensor(options);
-                            this.sensors.magnetometer = (options) => new magnetometer_1.AppNextMagnetometerSensor(options);
-                        };
-                        return this.worker.start().then(() => {
-                            this.invokeReadyEvent();
-                            this.invokeDataEvent(this);
-                        }).catch(error => this.invokeCancelEvent(error));
-                    }
-                    catch (error) {
-                        this.invokeCancelEvent(error);
-                        return Promise.reject();
-                    }
-                }
-                stop() {
-                    const tasks = [
-                        this.worker.stop()
-                    ];
-                    return Promise.all(tasks).then(() => this.invokeCancelEvent(error_6.error(error_6.Errors.featureTerminated)));
-                }
-            };
-            exports_13("AppNextCore", AppNextCore);
+            exports_13("AppNextNotificationsProvider", AppNextNotificationsProvider);
         }
     };
 });
 System.register("handlers/background", ["handlers/data", "handlers/error"], function (exports_14, context_14) {
     "use strict";
-    var data_6, error_7, AppNextBackgroundService;
+    var data_6, error_6, AppNextBackgroundService;
     var __moduleName = context_14 && context_14.id;
     return {
         setters: [
             function (data_6_1) {
                 data_6 = data_6_1;
             },
-            function (error_7_1) {
-                error_7 = error_7_1;
+            function (error_6_1) {
+                error_6 = error_6_1;
             }
         ],
         execute: function () {
@@ -983,7 +903,14 @@ System.register("handlers/background", ["handlers/data", "handlers/error"], func
                     }
                 }
                 post(data) {
-                    this.worker.postMessage(data);
+                    try {
+                        this.worker.postMessage(data);
+                        return true;
+                    }
+                    catch (error) {
+                        this.invokeErrorEvent(error);
+                        return false;
+                    }
                 }
                 start() {
                     if (!this.worker) {
@@ -992,7 +919,7 @@ System.register("handlers/background", ["handlers/data", "handlers/error"], func
                             return false;
                     }
                     try {
-                        this.worker.onerror = event => this.invokeErrorEvent(event.error);
+                        this.worker.onerror = event => this.invokeErrorEvent(new Error(event.message));
                         this.worker.onmessage = event => {
                             try {
                                 this.invokeDataEvent(event);
@@ -1017,7 +944,7 @@ System.register("handlers/background", ["handlers/data", "handlers/error"], func
                             setTimeout(() => {
                                 this.worker.terminate();
                                 this.worker.onerror = this.worker.onmessage = null;
-                                this.invokeCancelEvent(error_7.error(error_7.Errors.featureTerminated));
+                                this.invokeCancelEvent(error_6.error(error_6.Errors.featureTerminated));
                                 resolve();
                             }, 10);
                         }
@@ -1032,10 +959,141 @@ System.register("handlers/background", ["handlers/data", "handlers/error"], func
         }
     };
 });
-System.register("elements/base/utils", ["core"], function (exports_15, context_15) {
+System.register("core", ["sensors/accelerometer", "providers/geolocation", "sensors/gyroscope", "sensors/light", "sensors/magnetometer", "providers/notifications", "handlers/worker", "handlers/data", "handlers/error", "handlers/pubsub", "handlers/background"], function (exports_15, context_15) {
+    "use strict";
+    var accelerometer_1, geolocation_1, gyroscope_1, light_1, magnetometer_1, notifications_1, worker_1, data_7, error_7, pubsub_2, background_1, AppNextCore;
+    var __moduleName = context_15 && context_15.id;
+    function config(name) {
+        const object = (AppNextCore.config || {})[name] || {};
+        object.name = name;
+        return object;
+    }
+    exports_15("config", config);
+    return {
+        setters: [
+            function (accelerometer_1_1) {
+                accelerometer_1 = accelerometer_1_1;
+            },
+            function (geolocation_1_1) {
+                geolocation_1 = geolocation_1_1;
+            },
+            function (gyroscope_1_1) {
+                gyroscope_1 = gyroscope_1_1;
+            },
+            function (light_1_1) {
+                light_1 = light_1_1;
+            },
+            function (magnetometer_1_1) {
+                magnetometer_1 = magnetometer_1_1;
+            },
+            function (notifications_1_1) {
+                notifications_1 = notifications_1_1;
+            },
+            function (worker_1_1) {
+                worker_1 = worker_1_1;
+            },
+            function (data_7_1) {
+                data_7 = data_7_1;
+            },
+            function (error_7_1) {
+                error_7 = error_7_1;
+            },
+            function (pubsub_2_1) {
+                pubsub_2 = pubsub_2_1;
+            },
+            function (background_1_1) {
+                background_1 = background_1_1;
+            }
+        ],
+        execute: function () {
+            AppNextCore = class AppNextCore extends data_7.AppNextDataEvents {
+                constructor(events) {
+                    super();
+                    this.onCancel = events.onCancel;
+                    this.onData = events.onData;
+                    this.onError = events.onError;
+                    this.onPending = events.onPending;
+                    this.onReady = events.onReady;
+                    this.providers =
+                        {
+                            geolocation: null,
+                            notifications: null
+                        };
+                    this.sensors =
+                        {
+                            accelerometer: null,
+                            gyroscope: null,
+                            light: null,
+                            magnetometer: null
+                        };
+                    this.pubsub = new pubsub_2.AppNextPubSubManager(message => this.service.post(message));
+                    this.service = new background_1.AppNextBackgroundService('onmessage = event => postMessage(event.data)');
+                    this.service.onError = error => this.invokeErrorEvent(error);
+                    this.service.onData = event => this.pubsub.invoke(event);
+                    this.worker = new worker_1.AppNextServiceWorker();
+                }
+                config(value) { AppNextCore.config = value || {}; }
+                publish(message, topic) {
+                    if (!(message instanceof Object))
+                        message = { message };
+                    return this.pubsub.publish(Object.assign(message, { topic }));
+                }
+                subscribe(listener, topic) {
+                    this.pubsub.subscribe((event) => {
+                        if (topic == event.data.topic)
+                            listener(event);
+                    });
+                }
+                start() {
+                    try {
+                        const handle = {
+                            notifications: null
+                        };
+                        this.worker.onError = error => this.invokeErrorEvent(error);
+                        this.worker.onReady = () => {
+                            this.providers.geolocation = (options) => new geolocation_1.AppNextGeoLocationProvider(options);
+                            this.providers.notifications = () => {
+                                if (!handle.notifications) {
+                                    handle.notifications = new notifications_1.AppNextNotificationsProvider(this.worker);
+                                }
+                                return handle.notifications;
+                            };
+                            this.sensors.accelerometer = (options) => new accelerometer_1.AppNextAccelerometerSensor(options);
+                            this.sensors.gyroscope = (options) => new gyroscope_1.AppNextGyroscopeSensor(options);
+                            this.sensors.light = (options) => new light_1.AppNextLightSensor(options);
+                            this.sensors.magnetometer = (options) => new magnetometer_1.AppNextMagnetometerSensor(options);
+                        };
+                        return this.worker.start().then(() => {
+                            this.service.onReady = () => {
+                                this.invokeReadyEvent();
+                                this.invokeDataEvent(this);
+                            };
+                            this.service.start();
+                        }).catch(error => this.invokeCancelEvent(error));
+                    }
+                    catch (error) {
+                        this.invokeCancelEvent(error);
+                        return Promise.reject();
+                    }
+                }
+                stop() {
+                    const tasks = [
+                        this.service.stop(),
+                        this.worker.stop()
+                    ];
+                    return Promise.all(tasks)
+                        .then(() => this.invokeCancelEvent(error_7.error(error_7.Errors.featureTerminated)))
+                        .catch(error => this.invokeErrorEvent(error));
+                }
+            };
+            exports_15("AppNextCore", AppNextCore);
+        }
+    };
+});
+System.register("elements/base/utils", ["core"], function (exports_16, context_16) {
     "use strict";
     var core_1, AppNextCustomElementUtils;
-    var __moduleName = context_15 && context_15.id;
+    var __moduleName = context_16 && context_16.id;
     return {
         setters: [
             function (core_1_1) {
@@ -1075,39 +1133,39 @@ System.register("elements/base/utils", ["core"], function (exports_15, context_1
                     this.container.innerHTML = '';
                 }
             };
-            exports_15("AppNextCustomElementUtils", AppNextCustomElementUtils);
+            exports_16("AppNextCustomElementUtils", AppNextCustomElementUtils);
         }
     };
 });
-System.register("elements/base/element", ["elements/base/utils", "handlers/data"], function (exports_16, context_16) {
+System.register("elements/base/element", ["elements/base/utils", "handlers/data"], function (exports_17, context_17) {
     "use strict";
-    var utils_1, data_7, AppNextCustomElement;
-    var __moduleName = context_16 && context_16.id;
+    var utils_1, data_8, AppNextCustomElement;
+    var __moduleName = context_17 && context_17.id;
     return {
         setters: [
             function (utils_1_1) {
                 utils_1 = utils_1_1;
             },
-            function (data_7_1) {
-                data_7 = data_7_1;
+            function (data_8_1) {
+                data_8 = data_8_1;
             }
         ],
         execute: function () {
             AppNextCustomElement = class AppNextCustomElement extends HTMLElement {
                 constructor() {
                     super();
-                    this.events = new data_7.AppNextDataEvents();
+                    this.events = new data_8.AppNextDataEvents();
                     this.utils = new utils_1.AppNextCustomElementUtils(this);
                 }
             };
-            exports_16("AppNextCustomElement", AppNextCustomElement);
+            exports_17("AppNextCustomElement", AppNextCustomElement);
         }
     };
 });
-System.register("elements/file-saver", ["elements/base/element", "handlers/error"], function (exports_17, context_17) {
+System.register("elements/file-saver", ["elements/base/element", "handlers/error"], function (exports_18, context_18) {
     "use strict";
     var element_1, error_8, AppNextFileSaver;
-    var __moduleName = context_17 && context_17.id;
+    var __moduleName = context_18 && context_18.id;
     return {
         setters: [
             function (element_1_1) {
@@ -1147,14 +1205,14 @@ System.register("elements/file-saver", ["elements/base/element", "handlers/error
                     }
                 }
             };
-            exports_17("AppNextFileSaver", AppNextFileSaver);
+            exports_18("AppNextFileSaver", AppNextFileSaver);
         }
     };
 });
-System.register("elements/media-picker", ["elements/base/element", "handlers/error"], function (exports_18, context_18) {
+System.register("elements/media-picker", ["elements/base/element", "handlers/error"], function (exports_19, context_19) {
     "use strict";
     var element_2, error_9, AppNextMediaPicker;
-    var __moduleName = context_18 && context_18.id;
+    var __moduleName = context_19 && context_19.id;
     return {
         setters: [
             function (element_2_1) {
@@ -1200,22 +1258,22 @@ System.register("elements/media-picker", ["elements/base/element", "handlers/err
                     }
                 }
             };
-            exports_18("AppNextMediaPicker", AppNextMediaPicker);
+            exports_19("AppNextMediaPicker", AppNextMediaPicker);
         }
     };
 });
-System.register("handlers/scheduler", ["handlers/background"], function (exports_19, context_19) {
+System.register("handlers/scheduler", ["handlers/background"], function (exports_20, context_20) {
     "use strict";
-    var background_1, AppNextScheduler;
-    var __moduleName = context_19 && context_19.id;
+    var background_2, AppNextScheduler;
+    var __moduleName = context_20 && context_20.id;
     return {
         setters: [
-            function (background_1_1) {
-                background_1 = background_1_1;
+            function (background_2_1) {
+                background_2 = background_2_1;
             }
         ],
         execute: function () {
-            AppNextScheduler = class AppNextScheduler extends background_1.AppNextBackgroundService {
+            AppNextScheduler = class AppNextScheduler extends background_2.AppNextBackgroundService {
                 constructor(seconds = 1) {
                     super(`
             function handleError(error)
@@ -1296,20 +1354,27 @@ System.register("handlers/scheduler", ["handlers/background"], function (exports
                         this.register(task);
                 }
                 post(task) {
-                    const key = new Date().getTime().toString(36);
-                    this.tasks[key] = task;
-                    super.post({ key, when: task.when });
-                    this.invokeRegisterEvent(task);
+                    try {
+                        const key = new Date().getTime().toString(36);
+                        this.tasks[key] = task;
+                        super.post({ key, when: task.when });
+                        this.invokeRegisterEvent(task);
+                        return true;
+                    }
+                    catch (error) {
+                        this.invokeErrorEvent(error);
+                        return false;
+                    }
                 }
             };
-            exports_19("AppNextScheduler", AppNextScheduler);
+            exports_20("AppNextScheduler", AppNextScheduler);
         }
     };
 });
-System.register("handlers/reflector", [], function (exports_20, context_20) {
+System.register("handlers/reflector", [], function (exports_21, context_21) {
     "use strict";
     var AppNextReflector;
-    var __moduleName = context_20 && context_20.id;
+    var __moduleName = context_21 && context_21.id;
     return {
         setters: [],
         execute: function () {
@@ -1359,18 +1424,18 @@ System.register("handlers/reflector", [], function (exports_20, context_20) {
                     return this.active = false;
                 }
             };
-            exports_20("AppNextReflector", AppNextReflector);
+            exports_21("AppNextReflector", AppNextReflector);
         }
     };
 });
-System.register("setup", ["handlers/background", "elements/file-saver", "elements/media-picker", "elements/base/element", "handlers/scheduler", "handlers/reflector"], function (exports_21, context_21) {
+System.register("setup", ["handlers/background", "elements/file-saver", "elements/media-picker", "elements/base/element", "handlers/scheduler", "handlers/reflector"], function (exports_22, context_22) {
     "use strict";
-    var background_2, file_saver_1, media_picker_1, element_3, scheduler_1, reflector_1, AppNextSetupRegistry, AppNextCustomElementsRegistry, AppNextServicesRegistry, AppNextRenderer, AppNextSetup;
-    var __moduleName = context_21 && context_21.id;
+    var background_3, file_saver_1, media_picker_1, element_3, scheduler_1, reflector_1, AppNextSetupRegistry, AppNextCustomElementsRegistry, AppNextServicesRegistry, AppNextRenderer, AppNextSetup;
+    var __moduleName = context_22 && context_22.id;
     return {
         setters: [
-            function (background_2_1) {
-                background_2 = background_2_1;
+            function (background_3_1) {
+                background_3 = background_3_1;
             },
             function (file_saver_1_1) {
                 file_saver_1 = file_saver_1_1;
@@ -1450,7 +1515,7 @@ System.register("setup", ["handlers/background", "elements/file-saver", "element
                             return this.scheduler;
                         },
                         service: (name, script) => {
-                            return this.services.register(name, new background_2.AppNextBackgroundService(script));
+                            return this.services.register(name, new background_3.AppNextBackgroundService(script));
                         }
                     };
                     this.elements = new AppNextCustomElementsRegistry();
@@ -1464,7 +1529,7 @@ System.register("setup", ["handlers/background", "elements/file-saver", "element
                     this.renderer.render(elements);
                 }
             };
-            exports_21("AppNextSetup", AppNextSetup);
+            exports_22("AppNextSetup", AppNextSetup);
         }
     };
 });

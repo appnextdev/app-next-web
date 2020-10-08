@@ -45,20 +45,29 @@
 
                 onData: ctx => 
                 {
-                    const value = new Date().getTime()
+                    const message = { value: new Date().getTime() }
 
                     ctx.subscribe(event =>
                     {
-                        const message = event.data
+                        const recieved = event.data
 
-                        notify('lib-message', message.event.data == value)
-
-                        output('lib-output', { value })
-
-                        ctx.stop()
+                        notify('lib-message', recieved.value == message.value)
+                        output('lib-output', recieved)
                     })
 
-                    if (!ctx.publish(value))
+                    ctx.subscribe(event => 
+                    {
+                        output('lib-output', event, true)
+
+                        ctx.stop()
+                        
+                    }, 'stop')
+
+                    if (ctx.publish(message))
+                    {
+                        ctx.publish(message, 'stop')
+                    }
+                    else
                     {
                         notify('lib-cancel', false)
                     }

@@ -53,21 +53,22 @@
 
                 manager.onReady = () => 
                 {
-                    var touch = false
-
                     notify('manager-ready', true)
 
                     manager.create('Test Notification',
                     {
                         onCancel: error => 
                         {
-                            if (!touch) notify('notification-touch', false)
+                            if (error.name == 'feature terminated')
+                            {
+                                notify('notification-cancel', true)
+                                notify('notification-touch', true)
 
-                            notify('notification-cancel', error.name == 'feature terminated')
+                                manager.stop()
+                            }
                         },
                         onData: () => 
                         {
-                            touch = true
                             notify('notification-touch', true)
                         },
                         onError: () =>
@@ -83,19 +84,13 @@
                     },
                     {
                         body: 'I 😍 Notifications',
-                        icon: '../assets/icon.png'
+                        icon: '../assets/icon.png',
+                        requireInteraction: true,
+                        silent: false
                     })
                 }
 
                 manager.start()
-
-                setTimeout(() => 
-                {
-                    if (!manager.stop()) 
-                    {
-                        manager.invokeErrorEvent(new Error('Failed to start notifications manager'))
-                    }
-                }, 7000)
             })
         </script>
     </head>
