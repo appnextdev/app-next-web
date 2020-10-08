@@ -710,8 +710,11 @@ System.register("handlers/worker", ["handlers/data", "handlers/error", "handlers
                         navigator.serviceWorker.onmessage = event => this.pubsub.invoke(event);
                         navigator.serviceWorker.register('/app-next-service-worker.js');
                         return navigator.serviceWorker.ready.then(registration => {
+                            this.registration = registration;
+                            return registration.update();
+                        }).then(() => {
                             this.invokeReadyEvent();
-                            this.invokeDataEvent(this.registration = registration);
+                            this.invokeDataEvent(this.registration);
                         }).catch(error => this.invokeCancelEvent(error));
                     }
                     catch (error) {
