@@ -10,32 +10,7 @@
         <script>
             AppNext(ctx => 
             {
-                const service = ctx.register.service('test-service',
-                `
-                    onmessage = event =>
-                    {
-                        switch (event.data.action)
-                        {
-                            case 'start':
-
-                                postMessage({ info: 'starting background service test' })
-
-                                setInterval(() =>
-                                {
-                                    postMessage({ value: new Date().getTime().toString(36) })
-
-                                }, 700)
-
-                                break
-
-                            case 'stop':
-
-                                postMessage({ info: 'background service stopped' })
-
-                                break
-                        }
-                    }
-                `)
+                const service = ctx.register.service('background.service.js')
 
                 service.onCancel = error =>
                 {

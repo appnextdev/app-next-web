@@ -640,9 +640,6 @@ System.register("handlers/pubsub", ["handlers/data"], function (exports_11, cont
                         }
                     });
                 }
-                publish(message) {
-                    return this.post ? this.post(message) : false;
-                }
                 subscribe(listener) {
                     this.listeners.push(listener);
                 }
@@ -674,7 +671,7 @@ System.register("handlers/worker", ["handlers/data", "handlers/error", "handlers
             AppNextServiceWorker = class AppNextServiceWorker extends data_4.AppNextDataEvents {
                 constructor() {
                     super();
-                    this.pubsub = new pubsub_1.AppNextPubSubManager(data => this.message(data));
+                    this.pubsub = new pubsub_1.AppNextPubSubManager();
                 }
                 invoke(handler) {
                     try {
@@ -686,19 +683,27 @@ System.register("handlers/worker", ["handlers/data", "handlers/error", "handlers
                         return error;
                     }
                 }
-                message(data) {
-                    try {
-                        if (navigator.serviceWorker.controller) {
-                            navigator.serviceWorker.controller.postMessage(data);
-                            return true;
+                /*public message(data: any) : boolean
+                {
+                    try
+                    {
+                        if (navigator.serviceWorker.controller)
+                        {
+                            navigator.serviceWorker.controller.postMessage(data)
+            
+                            return true
                         }
-                        return false;
+            
+                        return false
+                        
                     }
-                    catch (error) {
-                        this.invokeErrorEvent(error);
-                        return false;
+                    catch(error)
+                    {
+                        this.invokeErrorEvent(error)
+            
+                        return false
                     }
-                }
+                }*/
                 subscribe(listener) {
                     this.pubsub.subscribe(listener);
                 }
@@ -890,15 +895,17 @@ System.register("handlers/background", ["handlers/data", "handlers/error"], func
         ],
         execute: function () {
             AppNextBackgroundService = class AppNextBackgroundService extends data_6.AppNextDataEvents {
-                constructor(script) {
+                constructor(path) {
                     super();
-                    this.code = 'data:application/x-javascript;base64,' + btoa(script);
+                    if (!path.startsWith('data:application/')) {
+                        this.path = path;
+                    }
                 }
                 request() {
                     try {
                         if (this.worker)
                             return;
-                        this.worker = new Worker(this.code);
+                        this.worker = new Worker(this.path);
                         this.invokePendingEvent();
                     }
                     catch (error) {
@@ -922,7 +929,7 @@ System.register("handlers/background", ["handlers/data", "handlers/error"], func
                             return false;
                     }
                     try {
-                        this.worker.onerror = event => this.invokeErrorEvent(new Error(event.message));
+                        this.worker.onerror = event => this.invokeErrorEvent(event.error || new Error(event.message || event.filename));
                         this.worker.onmessage = event => {
                             try {
                                 this.invokeDataEvent(event);
@@ -1030,16 +1037,24 @@ System.register("core", ["sensors/accelerometer", "providers/geolocation", "sens
                             magnetometer: null
                         };
                     this.pubsub = new pubsub_2.AppNextPubSubManager(message => this.service.post(message));
-                    this.service = new background_1.AppNextBackgroundService('onmessage = event => postMessage(event.data)');
+                    this.service = new background_1.AppNextBackgroundService('/app-next-pubsub.js');
                     this.service.onError = error => this.invokeErrorEvent(error);
-                    this.service.onData = event => this.pubsub.invoke(event);
+                    this.service.onData = event => {
+                        const message = event.data;
+                        if (message.error) {
+                            this.invokeErrorEvent(event.data.error);
+                        }
+                        else {
+                            this.pubsub.invoke(event);
+                        }
+                    };
                     this.worker = new worker_1.AppNextServiceWorker();
                 }
                 config(value) { AppNextCore.config = value || {}; }
                 publish(message, topic) {
                     if (!(message instanceof Object))
                         message = { message };
-                    return this.pubsub.publish(Object.assign(message, { topic }));
+                    return this.service.post(Object.assign(message, { topic }));
                 }
                 subscribe(listener, topic) {
                     this.pubsub.subscribe((event) => {
@@ -1513,8 +1528,8 @@ System.register("setup", ["handlers/background", "elements/file-saver", "element
                             }
                             return this.scheduler;
                         },
-                        service: (name, script) => {
-                            return this.services.register(name, new background_3.AppNextBackgroundService(script));
+                        service: (script) => {
+                            return this.services.register(new Date().getTime().toString(36), new background_3.AppNextBackgroundService(script));
                         }
                     };
                     this.elements = new AppNextCustomElementsRegistry();
