@@ -51,7 +51,7 @@ const sensorTestSuit =
 
             setTimeout(() => sensor.stop(), 3000)
 
-            //throw error()
+            throw error()
         }
 
         sensor.start() 

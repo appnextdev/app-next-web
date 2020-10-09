@@ -31,6 +31,7 @@ gulp.task('copy-core-assets', () =>
     return gulp.src
     ([
         folder.core + 'app-next-pubsub.js',
+        folder.core + 'app-next-scheduler.js',
         folder.core + 'app-next-service-worker.js'
     ]).pipe(gulp.dest('.'))
 })

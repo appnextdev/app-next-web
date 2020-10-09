@@ -96,7 +96,8 @@ System.register("handlers/error", [], function (exports_2, context_2) {
                 Errors[Errors["invalidFactoryFunction"] = 5] = "invalidFactoryFunction";
                 Errors[Errors["notificationError"] = 6] = "notificationError";
                 Errors[Errors["notificationNotFound"] = 7] = "notificationNotFound";
-                Errors[Errors["permissionDenied"] = 8] = "permissionDenied";
+                Errors[Errors["notificationNotSupported"] = 8] = "notificationNotSupported";
+                Errors[Errors["permissionDenied"] = 9] = "permissionDenied";
             })(Errors || (Errors = {}));
             exports_2("Errors", Errors);
             errors = {
@@ -108,6 +109,7 @@ System.register("handlers/error", [], function (exports_2, context_2) {
                 invalidFactoryFunction: { name: 'invalid factory', message: 'Factory function must provide a valid handler instance' },
                 notificationError: { name: 'notification error', message: 'An error raised while handling notification' },
                 notificationNotFound: { name: 'notification not found', message: 'Notification not found in service worker registration' },
+                notificationNotSupported: { name: 'notification not supported', message: 'It seems that your browser does not supoort notifications. TRy to upgrade it or use a different browser to resolve' },
                 permissionDenied: { name: 'permission denied', message: 'Requested permission denied by user' }
             };
         }
@@ -216,11 +218,9 @@ System.register("sensors/base/sensor", ["handlers/watch", "handlers/error"], fun
                     super(permissions);
                     this.factory = factory;
                 }
-                request() {
-                    if (!this.factory)
-                        return Promise.reject(error_2.error(error_2.Errors.invalidFactoryFunction));
-                    this.invokePendingEvent();
-                    return super.request().then(() => {
+                initiate() {
+                    if (this.factory) {
+                        this.invokePendingEvent();
                         try {
                             this.handler = this.factory();
                         }
@@ -228,40 +228,41 @@ System.register("sensors/base/sensor", ["handlers/watch", "handlers/error"], fun
                             switch (error.name) {
                                 case 'SecurityError':
                                 case 'ReferenceError':
-                                    return this.invokeCancelEvent(error);
+                                    this.invokeCancelEvent(error);
+                                    break;
                                 default:
                                     this.invokeErrorEvent(error);
                             }
                         }
-                    }).catch(error => this.invokeErrorEvent(error));
-                }
-                start() {
-                    const invoke = () => {
-                        this.handler.start();
-                        this.invokeReadyEvent();
-                    };
-                    if (this.handler) {
-                        invoke();
-                        return Promise.resolve();
                     }
                     else {
-                        return this.request().then(() => {
-                            if (!this.handler)
-                                return;
-                            this.handler.onerror = event => {
-                                switch (event.error.name) {
-                                    case 'NotAllowedError':
-                                    case 'NotReadableError':
-                                        return this.invokeCancelEvent(event.error);
-                                    default:
-                                        return this.invokeErrorEvent(event.error);
-                                }
-                            };
-                            this.handler.onreading = () => this.invokeDataEvent(this.handler);
-                            invoke();
-                        }).catch(error => {
-                            this.invokeErrorEvent(error);
-                        });
+                        this.invokeErrorEvent(error_2.error(error_2.Errors.invalidFactoryFunction));
+                    }
+                }
+                start() {
+                    if (!this.handler) {
+                        this.initiate();
+                        if (!this.handler)
+                            return false;
+                        this.handler.onerror = event => {
+                            switch (event.error.name) {
+                                case 'NotAllowedError':
+                                case 'NotReadableError':
+                                    return this.invokeCancelEvent(event.error);
+                                default:
+                                    return this.invokeErrorEvent(event.error);
+                            }
+                        };
+                        this.handler.onreading = () => this.invokeDataEvent(this.handler);
+                    }
+                    try {
+                        this.handler.start();
+                        this.invokeReadyEvent();
+                        return true;
+                    }
+                    catch (error) {
+                        this.invokeCancelEvent(error);
+                        return false;
                     }
                 }
                 stop() {
@@ -431,7 +432,6 @@ System.register("handlers/pubsub", ["handlers/data"], function (exports_11, cont
                 constructor(post) {
                     super();
                     this.listeners = [];
-                    this.post = post;
                 }
                 invoke(event) {
                     this.listeners.forEach(listener => {
@@ -486,27 +486,6 @@ System.register("handlers/worker", ["handlers/data", "handlers/error", "handlers
                         return error;
                     }
                 }
-                /*public message(data: any) : boolean
-                {
-                    try
-                    {
-                        if (navigator.serviceWorker.controller)
-                        {
-                            navigator.serviceWorker.controller.postMessage(data)
-            
-                            return true
-                        }
-            
-                        return false
-                        
-                    }
-                    catch(error)
-                    {
-                        this.invokeErrorEvent(error)
-            
-                        return false
-                    }
-                }*/
                 subscribe(listener) {
                     this.pubsub.subscribe(listener);
                 }
@@ -626,30 +605,24 @@ System.register("providers/notifications", ["handlers/watch", "handlers/error", 
                     });
                 }
                 request() {
-                    return new Promise((resolve, reject) => {
-                        const handlePermission = (permission) => {
-                            if (handling)
-                                return;
-                            handling = true;
-                            this.active = true;
-                            if (!this.permission.handle(permission)) {
-                                this.active = false;
-                            }
-                            resolve();
-                        };
-                        var handling = false;
-                        const handler = Notification.requestPermission(handlePermission);
-                        if (handler instanceof Promise) {
-                            handler.then(handlePermission).catch(error => {
-                                this.active = false;
-                                this.invokeErrorEvent(error);
-                                reject(error);
-                            });
+                    if (!('Notification' in window)) {
+                        return Promise.reject(error_5.error(error_5.Errors.notificationNotSupported));
+                    }
+                    if (this.active)
+                        return Promise.resolve();
+                    return Promise.resolve(Notification.requestPermission()).then((permission) => {
+                        this.active = true;
+                        if (!this.permission.handle(permission)) {
+                            this.active = false;
+                            return Promise.reject(error_5.error(error_5.Errors.permissionDenied));
                         }
+                    }).catch(error => {
+                        this.active = false;
+                        return Promise.reject(error);
                     });
                 }
                 start() {
-                    return this.active ? Promise.reject() : this.request();
+                    return this.request().catch(error => this.invokeCancelEvent(error));
                 }
                 stop() {
                     if (!this.active)
@@ -1091,66 +1064,8 @@ System.register("handlers/scheduler", ["handlers/background"], function (exports
         ],
         execute: function () {
             AppNextScheduler = class AppNextScheduler extends background_2.AppNextBackgroundService {
-                constructor(seconds = 1) {
-                    super(`
-            function handleError(error)
-            {
-                throw error
-            }
-
-            const tasks = []
-
-            setInterval(() =>
-            {
-                const count = tasks.length,
-                      now = new Date().getTime()
-    
-                for (let i = 0; i < count; i++)
-                {
-                    const task = tasks.shift()
-
-                    try
-                    {
-                        if (now > task.when)
-                        {
-                            postMessage(task)
-                        }
-                        else
-                        {
-                            tasks.push(task)
-                        }
-                    }
-                    catch(error)
-                    {
-                        handleError(error)
-                    }
-                }
-
-            }, ${seconds * 1000})
-
-            onmessage = event =>
-            {
-                try
-                {
-                    const task = event.data
-
-                    if (!(task.when instanceof Date) || !(task.key))
-                    {
-                        const error = new Error('Invalid task object')
-
-                        error.name = 'invalid task'; handleError(error)
-                    }
-
-                    task.when.setMilliseconds(0)
-                    task.when = task.when.getTime()
-                    tasks.push(task)
-                }
-                catch(error)
-                {
-                    handleError(error)
-                }
-            }
-        `);
+                constructor() {
+                    super('/app-next-scheduler.js');
                     this.tasks = {};
                     this.onData = event => {
                         const task = this.tasks[event.data.key];
@@ -1325,14 +1240,14 @@ System.register("setup", ["handlers/background", "elements/file-saver", "element
                         reflector: (events) => {
                             return new reflector_1.AppNextReflector(events);
                         },
-                        scheduler: (seconds) => {
+                        scheduler: () => {
                             if (!this.scheduler) {
-                                this.scheduler = new scheduler_1.AppNextScheduler(seconds);
+                                this.scheduler = new scheduler_1.AppNextScheduler();
                             }
                             return this.scheduler;
                         },
-                        service: (script) => {
-                            return this.services.register(new Date().getTime().toString(36), new background_3.AppNextBackgroundService(script));
+                        service: (path) => {
+                            return this.services.register(path, new background_3.AppNextBackgroundService(path));
                         }
                     };
                     this.elements = new AppNextCustomElementsRegistry();
